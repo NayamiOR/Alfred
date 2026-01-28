@@ -1,14 +1,194 @@
-// Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
+mod models;
+
+use models::{AppData, AppState, FileItem, Library};
+use std::path::Path;
+use std::process::Command;
+use std::fs;
+use std::collections::HashSet;
+use tauri::{Manager, State};
+use uuid::Uuid;
+use chrono::Utc;
+use mime_guess::from_path;
+
+// Helper to save data without re-locking
+fn save_to_disk(data: &AppData, file_path: &Path) {
+    if let Ok(content) = serde_json::to_string_pretty(data) {
+        let _ = fs::write(file_path, content);
+    }
+}
+
 #[tauri::command]
-fn greet(name: &str) -> String {
-    format!("Hello, {}! You've been greeted from Rust!", name)
+fn get_libraries(state: State<AppState>) -> Vec<Library> {
+    let data = state.data.lock().unwrap();
+    data.libraries.clone()
+}
+
+#[tauri::command]
+fn create_library(name: String, state: State<AppState>) -> Library {
+    let mut data = state.data.lock().unwrap();
+    let lib = Library {
+        id: Uuid::new_v4().to_string(),
+        name,
+        icon: "📁".to_string(),
+        created_at: Utc::now().timestamp_millis(),
+    };
+    data.libraries.push(lib.clone());
+    save_to_disk(&data, &state.file_path);
+    lib
+}
+
+#[tauri::command]
+fn delete_library(id: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    data.libraries.retain(|l| l.id != id);
+    data.files.retain(|f| f.library_id != id);
+    save_to_disk(&data, &state.file_path);
+}
+
+#[tauri::command]
+fn get_files(library_id: String, state: State<AppState>) -> Vec<FileItem> {
+    let data = state.data.lock().unwrap();
+    data.files
+        .iter()
+        .filter(|f| f.library_id == library_id)
+        .cloned()
+        .collect()
+}
+
+#[tauri::command]
+fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> Vec<FileItem> {
+    let mut data = state.data.lock().unwrap();
+    let mut new_files = Vec::new();
+    
+    // Whitelists
+    let docs = vec!["pdf", "doc", "docx", "txt", "md", "markdown", "xls", "xlsx", "ppt", "pptx", "rtf", "csv", "json", "xml", "epub"];
+    let images = vec!["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff"];
+    let videos = vec!["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv"];
+    let audios = vec!["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma"];
+    
+    let allowed_exts: HashSet<&str> = docs.into_iter()
+        .chain(images)
+        .chain(videos)
+        .chain(audios)
+        .collect();
+
+    for path_str in paths {
+        let path = Path::new(&path_str);
+        if !path.exists() { continue; }
+
+        let is_dir = path.is_dir();
+        let extension = path.extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_lowercase();
+            
+        // Filter logic: Allow if it's a directory OR if the extension is in whitelist
+        if !is_dir && !allowed_exts.contains(extension.as_str()) {
+            continue;
+        }
+
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        let size = if is_dir { 0 } else { path.metadata().map(|m| m.len()).unwrap_or(0) };
+        let mime_type = if is_dir {
+            "inode/directory".to_string()
+        } else {
+            from_path(path).first_or_octet_stream().to_string()
+        };
+        
+        let final_extension = if is_dir { "folder".to_string() } else { extension };
+
+        let file_item = FileItem {
+            id: Uuid::new_v4().to_string(),
+            library_id: library_id.clone(),
+            name,
+            path: path_str.clone(),
+            extension: final_extension,
+            size,
+            mime_type,
+            added_at: Utc::now().timestamp_millis(),
+        };
+        new_files.push(file_item.clone());
+        data.files.push(file_item);
+    }
+    save_to_disk(&data, &state.file_path);
+    new_files
+}
+
+#[tauri::command]
+fn delete_files(ids: Vec<String>, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    let id_set: HashSet<_> = ids.into_iter().collect();
+    data.files.retain(|f| !id_set.contains(&f.id));
+    save_to_disk(&data, &state.file_path);
+}
+
+// Deprecated single delete, kept for compatibility if needed, but we should use delete_files
+#[tauri::command]
+fn delete_file(id: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    data.files.retain(|f| f.id != id);
+    save_to_disk(&data, &state.file_path);
+}
+
+#[tauri::command]
+fn open_file_default(path: String) -> Result<(), String> {
+    open::that(path).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn show_in_explorer(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("explorer")
+            .args(["/select,", &path])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        open::that(path).map_err(|e| e.to_string())
+    }
+}
+
+#[tauri::command]
+fn copy_file_to_clipboard(path: String) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        Command::new("powershell")
+            .args(["-NoProfile", "-Command", &format!("Set-Clipboard -Path '{}'", path)])
+            .spawn()
+            .map_err(|e| e.to_string())?;
+        Ok(())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("Not supported on this OS".to_string())
+    }
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
-        .invoke_handler(tauri::generate_handler![greet])
+        .setup(|app| {
+            let state = AppState::new(app.handle());
+            app.manage(state);
+            Ok(())
+        })
+        .invoke_handler(tauri::generate_handler![
+            get_libraries,
+            create_library,
+            delete_library,
+            get_files,
+            add_files,
+            delete_file,
+            delete_files,
+            open_file_default,
+            show_in_explorer,
+            copy_file_to_clipboard
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }

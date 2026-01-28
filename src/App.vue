@@ -9,14 +9,22 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 import TopBar from "./components/TopBar.vue";
 import ShortcutBar from "./components/ShortcutBar.vue";
 
 const isDarkMode = ref(false);
 
+onMounted(() => {
+  const savedMode = localStorage.getItem('isDarkMode');
+  if (savedMode !== null) {
+    isDarkMode.value = savedMode === 'true';
+  }
+});
+
 function toggleDarkMode() {
   isDarkMode.value = !isDarkMode.value;
+  localStorage.setItem('isDarkMode', String(isDarkMode.value));
 }
 </script>
 
