@@ -24,6 +24,19 @@ interface LibraryState {
   files: FileItem[];
   currentLibraryId: string | null;
   isLoading: boolean;
+  ui: {
+    searchQuery: string;
+    cardScale: number;
+    isGridView: boolean;
+    showFilterPanel: boolean;
+    filters: {
+      fileTypes: string[];
+    };
+    sortConfig: {
+      by: 'name' | 'added_at' | 'size' | 'extension';
+      order: 'asc' | 'desc';
+    };
+  };
 }
 
 export const libraryStore = reactive<LibraryState>({
@@ -31,6 +44,19 @@ export const libraryStore = reactive<LibraryState>({
   files: [],
   currentLibraryId: null,
   isLoading: false,
+  ui: {
+    searchQuery: '',
+    cardScale: 1.0,
+    isGridView: true,
+    showFilterPanel: false,
+    filters: {
+      fileTypes: []
+    },
+    sortConfig: {
+      by: 'added_at',
+      order: 'desc'
+    }
+  }
 });
 
 export const currentFiles = computed(() => {

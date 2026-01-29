@@ -1,14 +1,19 @@
 mod models;
 
-use models::{AppData, AppState, FileItem, Library};
-use std::path::Path;
-use std::process::Command;
-use std::fs;
-use std::collections::HashSet;
-use tauri::{Manager, State};
-use uuid::Uuid;
 use chrono::Utc;
 use mime_guess::from_path;
+use models::{AppData, AppState, FileItem, Library};
+use std::collections::HashSet;
+use std::fs;
+use std::path::Path;
+use std::process::Command;
+use tauri::{
+    menu::{Menu, MenuItem},
+    tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
+    Manager, State,
+};
+use tauri_plugin_fs::FsExt;
+use uuid::Uuid;
 
 // Helper to save data without re-locking
 fn save_to_disk(data: &AppData, file_path: &Path) {
@@ -59,14 +64,20 @@ fn get_files(library_id: String, state: State<AppState>) -> Vec<FileItem> {
 fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> Vec<FileItem> {
     let mut data = state.data.lock().unwrap();
     let mut new_files = Vec::new();
-    
+
     // Whitelists
-    let docs = vec!["pdf", "doc", "docx", "txt", "md", "markdown", "xls", "xlsx", "ppt", "pptx", "rtf", "csv", "json", "xml", "epub"];
-    let images = vec!["jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff"];
+    let docs = vec![
+        "pdf", "doc", "docx", "txt", "md", "markdown", "xls", "xlsx", "ppt", "pptx", "rtf", "csv",
+        "json", "xml", "epub",
+    ];
+    let images = vec![
+        "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff",
+    ];
     let videos = vec!["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv"];
     let audios = vec!["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma"];
-    
-    let allowed_exts: HashSet<&str> = docs.into_iter()
+
+    let allowed_exts: HashSet<&str> = docs
+        .into_iter()
         .chain(images)
         .chain(videos)
         .chain(audios)
@@ -74,28 +85,43 @@ fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> 
 
     for path_str in paths {
         let path = Path::new(&path_str);
-        if !path.exists() { continue; }
+        if !path.exists() {
+            continue;
+        }
 
         let is_dir = path.is_dir();
-        let extension = path.extension()
+        let extension = path
+            .extension()
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-            
+
         // Filter logic: Allow if it's a directory OR if the extension is in whitelist
         if !is_dir && !allowed_exts.contains(extension.as_str()) {
             continue;
         }
 
-        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
-        let size = if is_dir { 0 } else { path.metadata().map(|m| m.len()).unwrap_or(0) };
+        let name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+        let size = if is_dir {
+            0
+        } else {
+            path.metadata().map(|m| m.len()).unwrap_or(0)
+        };
         let mime_type = if is_dir {
             "inode/directory".to_string()
         } else {
             from_path(path).first_or_octet_stream().to_string()
         };
-        
-        let final_extension = if is_dir { "folder".to_string() } else { extension };
+
+        let final_extension = if is_dir {
+            "folder".to_string()
+        } else {
+            extension
+        };
 
         let file_item = FileItem {
             id: Uuid::new_v4().to_string(),
@@ -156,7 +182,11 @@ fn copy_file_to_clipboard(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
         Command::new("powershell")
-            .args(["-NoProfile", "-Command", &format!("Set-Clipboard -Path '{}'", path)])
+            .args([
+                "-NoProfile",
+                "-Command",
+                &format!("Set-Clipboard -Path '{}'", path),
+            ])
             .spawn()
             .map_err(|e| e.to_string())?;
         Ok(())
@@ -170,12 +200,72 @@ fn copy_file_to_clipboard(path: String) -> Result<(), String> {
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
+        .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_persisted_scope::init())
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            Some(vec!["--minimized"]),
+        ))
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let state = AppState::new(app.handle());
+
+            // Manually re-hydrate the filesystem scope from the saved database
+            {
+                let data = state.data.lock().unwrap();
+                let scope = app.fs_scope();
+                for file in &data.files {
+                    let _ = scope.allow_file(Path::new(&file.path));
+                }
+            }
+
             app.manage(state);
+
+            // System Tray Setup
+            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
+            let show_i = MenuItem::with_id(app, "show", "Open Alfred", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
+
+            let _tray = TrayIconBuilder::with_id("tray")
+                .icon(app.default_window_icon().unwrap().clone())
+                .menu(&menu)
+                .show_menu_on_left_click(false)
+                .on_menu_event(|app, event| match event.id.as_ref() {
+                    "quit" => {
+                        app.exit(0);
+                    }
+                    "show" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .on_tray_icon_event(|tray, event| match event {
+                    TrayIconEvent::Click {
+                        button: MouseButton::Left,
+                        ..
+                    } => {
+                        let app = tray.app_handle();
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                        }
+                    }
+                    _ => {}
+                })
+                .build(app)?;
+
             Ok(())
+        })
+        .on_window_event(|window, event| match event {
+            tauri::WindowEvent::CloseRequested { api, .. } => {
+                window.hide().unwrap();
+                api.prevent_close();
+            }
+            _ => {}
         })
         .invoke_handler(tauri::generate_handler![
             get_libraries,

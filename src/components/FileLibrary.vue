@@ -9,57 +9,23 @@
       <div class="drag-message">Drop files here to add</div>
     </div>
 
-    <div class="toolbar" @click.stop>
-      <div class="toolbar-left">
-        <div class="toolbar-actions">
-          <button class="add-btn" @click="triggerAddFile" title="Add Files">
-            <span>+</span>
-          </button>
-        </div>
-        <div class="search-bar">
-          <span class="search-icon">&#128269;</span>
-          <input 
-            v-model="searchQuery" 
-            placeholder="Search files..." 
-            class="search-input"
-          />
-        </div>
-      </div>
-      <div class="toolbar-right">
-        <select v-model="isGridView" class="view-selector">
-          <option :value="true">Card View</option>
-          <option :value="false">List View</option>
-        </select>
-        <button @click="toggleFilterPanel" class="filter-button" :class="{ active: showFilterPanel }">
-          <span>☰</span>
-        </button>
-      </div>
-    </div>
+    <!-- Filter Panel Overlay -->
+    <div v-if="libraryStore.ui.showFilterPanel" class="filter-backdrop" @click="libraryStore.ui.showFilterPanel = false"></div>
 
-    <div v-if="showFilterPanel" class="filter-backdrop" @click="showFilterPanel = false"></div>
-
-    <div v-if="showFilterPanel" class="filter-panel" @click.stop>
-      <!-- Filter Panel Content -->
-      <div class="filter-header">
-        <h3>Filters</h3>
-        <button @click="showFilterPanel = false" class="close-button">&times;</button>
-      </div>
-      <div class="filter-content">
-        <div class="filter-section">
-          <h4>File Type</h4>
-          <label v-for="type in uniqueFileTypes" :key="type" class="filter-checkbox">
-            <input type="checkbox" :value="type" v-model="filters.fileTypes" />
-            {{ type.toUpperCase() }}
-          </label>
-        </div>
-      </div>
-      <div class="filter-footer">
-        <button @click="clearFilters" class="clear-btn">Clear</button>
-      </div>
-    </div>
+    <transition name="slide-fade">
+      <FilterPanel 
+        v-if="libraryStore.ui.showFilterPanel"
+        :available-types="uniqueFileTypes"
+        v-model:selected-types="libraryStore.ui.filters.fileTypes"
+        v-model:sort="libraryStore.ui.sortConfig"
+        @close="libraryStore.ui.showFilterPanel = false"
+        @reset="resetFilters"
+      />
+    </transition>
 
     <div 
-      :class="['file-container', { 'grid-view': isGridView, 'list-view': !isGridView }]"
+      :class="['file-container', { 'grid-view': libraryStore.ui.isGridView, 'list-view': !libraryStore.ui.isGridView }]"
+      :style="{ '--card-scale': libraryStore.ui.cardScale }"
       @mousedown="startSelection"
       ref="fileContainerRef"
     >
@@ -82,7 +48,7 @@
       <div
         v-for="(file, index) in filteredFiles"
         :key="file.id"
-        :class="['file-item', { 'grid-item': isGridView, 'list-item': !isGridView, 'selected': selectedFileIds.has(file.id) }]"
+        :class="['file-item', { 'grid-item': libraryStore.ui.isGridView, 'list-item': !libraryStore.ui.isGridView, 'selected': selectedFileIds.has(file.id) }]"
         @click.stop="selectFile(file, index, $event)"
         @dblclick.stop="openFile(file)"
         @contextmenu.prevent.stop="showContextMenu($event, file)"
@@ -92,7 +58,7 @@
         @keydown.ctrl.a.prevent="selectAll"
         ref="fileItemRefs"
       >
-        <div :class="['file-cover', { 'grid-cover': isGridView, 'list-cover': !isGridView }]">
+        <div :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
           <div v-if="file.extension === 'folder'" class="folder-icon">📁</div>
           <img 
             v-else-if="file.mime_type.startsWith('image/')" 
@@ -132,14 +98,13 @@
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue';
 import { libraryStore, currentFiles, actions, FileItem } from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
+import FilterPanel from './FilterPanel.vue';
 import PreviewModal from './PreviewModal.vue';
-import { open } from '@tauri-apps/plugin-dialog';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { convertFileSrc } from '@tauri-apps/api/core';
 
-const isGridView = ref(true);
-const searchQuery = ref('');
-const showFilterPanel = ref(false);
+// Note: Local UI state has been moved to libraryStore.ui
+
 const isDragging = ref(false);
 const selectedFileIds = ref<Set<string>>(new Set());
 const lastSelectedId = ref<string | null>(null);
@@ -231,7 +196,6 @@ function onSelectionMove(e: MouseEvent) {
   if (scrollInterval) clearInterval(scrollInterval);
   scrollInterval = null;
 
-  let scrollX = 0;
   let scrollY = 0;
 
   if (e.clientY < containerRect.top + edgeThreshold) {
@@ -258,10 +222,6 @@ function updateSelection() {
   const rectRight = Math.max(selectionStart.value.x, selectionCurrent.value.x);
   const rectBottom = Math.max(selectionStart.value.y, selectionCurrent.value.y);
 
-  // We need to query file items from the DOM to check intersection
-  // Since ref="fileItemRefs" might not be reliable with v-for updates, 
-  // we can query manually or trust Vue's ref array if maintained properly.
-  // Let's manual query for robustness in this simple case.
   const items = fileContainerRef.value.querySelectorAll('.file-item');
   const containerRect = fileContainerRef.value.getBoundingClientRect();
   const scrollTop = fileContainerRef.value.scrollTop;
@@ -300,34 +260,65 @@ function endSelection() {
   window.removeEventListener('mouseup', endSelection);
 }
 
-// Filters
-const filters = ref({
-  fileTypes: [] as string[],
-});
-
 const uniqueFileTypes = computed(() => {
   return [...new Set(currentFiles.value.map(f => f.extension))];
 });
 
 const filteredFiles = computed(() => {
-  let result = currentFiles.value;
+  let result = [...currentFiles.value];
 
-  if (searchQuery.value) {
-    const query = searchQuery.value.toLowerCase();
+  // 1. Search
+  if (libraryStore.ui.searchQuery) {
+    const query = libraryStore.ui.searchQuery.toLowerCase();
     result = result.filter(file => 
       file.name.toLowerCase().includes(query) || 
       file.extension.toLowerCase().includes(query)
     );
   }
 
-  if (filters.value.fileTypes.length > 0) {
+  // 2. Filter by Type
+  if (libraryStore.ui.filters.fileTypes.length > 0) {
     result = result.filter(file => 
-      filters.value.fileTypes.includes(file.extension)
+      libraryStore.ui.filters.fileTypes.includes(file.extension)
     );
   }
 
+  // 3. Sort
+  result.sort((a, b) => {
+    let valA, valB;
+    
+    switch (libraryStore.ui.sortConfig.by) {
+      case 'name':
+        valA = a.name.toLowerCase();
+        valB = b.name.toLowerCase();
+        break;
+      case 'size':
+        valA = a.size;
+        valB = b.size;
+        break;
+      case 'extension':
+        valA = a.extension.toLowerCase();
+        valB = b.extension.toLowerCase();
+        break;
+      case 'added_at':
+      default:
+        valA = a.added_at;
+        valB = b.added_at;
+        break;
+    }
+
+    if (valA < valB) return libraryStore.ui.sortConfig.order === 'asc' ? -1 : 1;
+    if (valA > valB) return libraryStore.ui.sortConfig.order === 'asc' ? 1 : -1;
+    return 0;
+  });
+
   return result;
 });
+
+function resetFilters() {
+  libraryStore.ui.filters.fileTypes = [];
+  libraryStore.ui.sortConfig = { by: 'added_at', order: 'desc' };
+}
 
 // Selection Logic
 function selectFile(file: FileItem, index: number, event: MouseEvent) {
@@ -375,23 +366,6 @@ function deleteSelectedFiles() {
   if (selectedFileIds.value.size > 0) {
     actions.deleteFiles(Array.from(selectedFileIds.value));
     selectedFileIds.value.clear();
-  }
-}
-
-// Add File via Dialog
-async function triggerAddFile() {
-  try {
-    const selected = await open({
-      multiple: true,
-      directory: true, 
-    });
-    
-    if (selected) {
-      const paths = Array.isArray(selected) ? selected : [selected];
-      await actions.addFiles(paths);
-    }
-  } catch (err) {
-    console.error("Failed to open file dialog:", err);
   }
 }
 
@@ -485,14 +459,6 @@ function openPreview(file: FileItem) {
   preview.file = file;
   preview.visible = true;
 }
-
-function toggleFilterPanel() {
-  showFilterPanel.value = !showFilterPanel.value;
-}
-
-function clearFilters() {
-  filters.value.fileTypes = [];
-}
 </script>
 
 <style scoped>
@@ -523,135 +489,6 @@ function clearFilters() {
   border-radius: 8px;
   font-weight: bold;
   box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
-.toolbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  height: 48px;
-  padding: 0 16px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.toolbar-left {
-  flex: 1;
-  display: flex;
-  gap: 12px;
-  align-items: center;
-}
-
-.toolbar-actions {
-  display: flex;
-}
-
-.add-btn {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid var(--border-color);
-  background: var(--bg-primary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 20px;
-  color: var(--text-secondary);
-}
-
-.add-btn:hover {
-  background: var(--hover-color);
-  color: var(--text-primary);
-}
-
-.search-bar {
-  display: flex;
-  align-items: center;
-  width: 240px;
-  height: 32px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  padding: 0 12px;
-  background-color: var(--bg-primary);
-}
-
-.search-bar:focus-within {
-  border-color: var(--text-secondary);
-}
-
-.search-icon {
-  color: var(--text-secondary);
-  font-size: 14px;
-  margin-right: 8px;
-}
-
-.search-input {
-  flex: 1;
-  border: none;
-  outline: none;
-  background: none;
-  font-size: 14px;
-  color: var(--text-primary);
-}
-
-.toolbar-right {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.view-selector {
-  height: 32px;
-  padding: 4px 32px 4px 12px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
-  font-size: 14px;
-  cursor: pointer;
-}
-
-.filter-button {
-  height: 32px;
-  width: 32px;
-  border: 1px solid var(--border-color);
-  border-radius: 6px;
-  background-color: var(--bg-primary);
-  color: var(--text-secondary);
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.filter-button:hover, .filter-button.active {
-  background-color: var(--hover-color);
-}
-
-.filter-panel {
-  position: absolute;
-  top: 56px;
-  right: 16px;
-  width: 320px;
-  background-color: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-}
-
-.filter-header, .filter-footer {
-  padding: 12px 16px;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.filter-content {
-  padding: 16px;
 }
 
 .file-container {
@@ -706,8 +543,8 @@ function clearFilters() {
   background-color: var(--bg-secondary);
   border: 1px solid var(--border-color);
   border-radius: 8px;
-  width: 200px;
-  height: 180px;
+  width: calc(200px * var(--card-scale));
+  height: calc(180px * var(--card-scale));
   display: flex;
   flex-direction: column;
   overflow: hidden;
@@ -734,7 +571,7 @@ function clearFilters() {
 
 .grid-cover {
   width: 100%;
-  height: 112px;
+  height: calc(112px * var(--card-scale));
 }
 
 .list-cover {

@@ -94,7 +94,7 @@ input, textarea {
   grid-template-rows: 60px 1fr;
   grid-template-columns: 60px 1fr;
   grid-template-areas:
-    "shortcut topbar"
+    "topbar topbar"
     "shortcut content-area";
 }
 

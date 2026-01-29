@@ -1,10 +1,10 @@
+use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use std::fs;
 use std::path::PathBuf;
 use std::sync::{Arc, Mutex};
-use std::fs;
-use uuid::Uuid;
-use chrono::Utc;
 use tauri::Manager;
+use uuid::Uuid;
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct Library {
@@ -39,12 +39,15 @@ pub struct AppState {
 
 impl AppState {
     pub fn new(app_handle: &tauri::AppHandle) -> Self {
-        let app_data_dir = app_handle.path().app_data_dir().unwrap_or_else(|_| PathBuf::from("."));
+        let app_data_dir = app_handle
+            .path()
+            .app_data_dir()
+            .unwrap_or_else(|_| PathBuf::from("."));
         if !app_data_dir.exists() {
             let _ = fs::create_dir_all(&app_data_dir);
         }
         let file_path = app_data_dir.join("data.json");
-        
+
         let data = if file_path.exists() {
             let content = fs::read_to_string(&file_path).unwrap_or_default();
             serde_json::from_str(&content).unwrap_or_default()
