@@ -61,14 +61,30 @@
         <div :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
           <div v-if="file.extension === 'folder'" class="folder-icon">📁</div>
           <img 
-            v-else-if="file.mime_type.startsWith('image/')" 
+            v-else-if="file.mime_type.startsWith('image/') && !failedImageIds.has(file.id)" 
             :src="convertFileSrc(file.path)" 
             class="thumbnail-img" 
             loading="lazy"
+            @error="onImageError(file.id)"
           />
-          <div v-else class="cover-placeholder">{{ file.extension.toUpperCase() }}</div>
+          <div v-else class="cover-placeholder">
+            <span v-if="file.mime_type.startsWith('image/')">🖼️</span>
+            <span v-else>{{ file.extension.toUpperCase() }}</span>
+          </div>
+          
+          <!-- Tag Badges Overlay -->
+          <div v-if="file.tags.length > 0 && libraryStore.ui.isGridView" class="file-tags">
+            <span v-for="tag in file.tags.slice(0, 3)" :key="tag" class="tag-badge">{{ tag }}</span>
+            <span v-if="file.tags.length > 3" class="tag-badge">+{{ file.tags.length - 3 }}</span>
+          </div>
         </div>
-        <div class="file-name" :title="file.name">{{ file.name }}</div>
+        <div class="file-info-row">
+          <div class="file-name" :title="file.name">{{ file.name }}</div>
+          <!-- List View Tags -->
+          <div v-if="!libraryStore.ui.isGridView && file.tags.length > 0" class="list-tags">
+            <span v-for="tag in file.tags" :key="tag" class="tag-badge-small">{{ tag }}</span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -91,6 +107,29 @@
       @close="preview.visible = false"
       @open="openFile(preview.file)"
     />
+
+    <!-- Tag Input Modal -->
+    <div v-if="showTagInput" class="modal-backdrop" @click="showTagInput = false">
+      <div class="modal" @click.stop>
+        <h3>{{ targetFilesForTags.length > 1 ? `Edit Tags (${targetFilesForTags.length} items)` : 'Edit Tags' }}</h3>
+        <div class="current-tags">
+          <span v-for="tag in displayedTags" :key="tag" class="tag-chip">
+            {{ tag }}
+            <button @click="removeTag(tag)" class="remove-tag">×</button>
+          </span>
+        </div>
+        <input 
+          v-model="newTagValue" 
+          @keydown.enter="addTag"
+          placeholder="Type tag and press Enter"
+          class="tag-input"
+          autofocus
+        />
+        <div class="modal-actions">
+          <button @click="showTagInput = false" class="close-btn">Done</button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -108,6 +147,11 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 const isDragging = ref(false);
 const selectedFileIds = ref<Set<string>>(new Set());
 const lastSelectedId = ref<string | null>(null);
+const failedImageIds = ref<Set<string>>(new Set());
+
+function onImageError(id: string) {
+  failedImageIds.value.add(id);
+}
 
 // Selection Rectangle Logic
 const isSelecting = ref(false);
@@ -283,7 +327,29 @@ const filteredFiles = computed(() => {
     );
   }
 
-  // 3. Sort
+  // 3. Filter by Tag View Mode (Libraries & Tags)
+  if (libraryStore.ui.viewMode === 'tag') {
+    const { libraries, tags } = libraryStore.ui.tagViewFilters;
+    
+    // Filter by Selected Libraries
+    if (libraries.length > 0) {
+      result = result.filter(file => libraries.includes(file.library_id));
+    }
+
+    // Filter by Selected Tags
+    if (tags.length > 0) {
+      const showUntagged = tags.includes('_untagged_');
+      const standardTags = tags.filter(t => t !== '_untagged_');
+
+      result = result.filter(file => {
+        const matchesStandard = standardTags.length > 0 && standardTags.some(tag => file.tags.includes(tag));
+        const matchesUntagged = showUntagged && file.tags.length === 0;
+        return matchesStandard || matchesUntagged;
+      });
+    }
+  }
+
+  // 4. Sort
   result.sort((a, b) => {
     let valA, valB;
     
@@ -410,17 +476,23 @@ function showContextMenu(e: MouseEvent, file: FileItem) {
   contextMenu.position = { x: e.clientX, y: e.clientY };
   
   const count = selectedFileIds.value.size;
+  contextMenu.items = [];
+
+  // Edit Tags (Always available)
+  contextMenu.items.push({ 
+    label: count > 1 ? `Edit Tags (${count} items)...` : 'Edit Tags...', 
+    action: 'tags' 
+  });
+
   if (count > 1) {
-    contextMenu.items = [
-      { label: `Delete ${count} items`, action: 'delete' }
-    ];
+    contextMenu.items.push({ label: `Delete ${count} items`, action: 'delete' });
   } else {
-    contextMenu.items = [
+    contextMenu.items.push(
       { label: 'Open', action: 'open' },
       { label: 'Open File Location', action: 'reveal' },
       { label: 'Copy File', action: 'copy' },
       { label: 'Delete', action: 'delete' }
-    ];
+    );
   }
   
   contextMenu.visible = true;
@@ -442,7 +514,53 @@ function handleMenuAction(action: string) {
     case 'delete':
       deleteSelectedFiles();
       break;
+    case 'tags':
+      if (file) openTagInput(file);
+      break;
   }
+}
+
+// Tag Input
+const showTagInput = ref(false);
+const targetFilesForTags = ref<FileItem[]>([]);
+const newTagValue = ref('');
+
+function openTagInput(file: FileItem) {
+  if (selectedFileIds.value.size > 0 && selectedFileIds.value.has(file.id)) {
+    // Bulk edit
+    targetFilesForTags.value = libraryStore.files.filter(f => selectedFileIds.value.has(f.id));
+  } else {
+    // Single edit
+    targetFilesForTags.value = [file];
+  }
+  showTagInput.value = true;
+  newTagValue.value = '';
+}
+
+const displayedTags = computed(() => {
+  const allTags = new Set<string>();
+  targetFilesForTags.value.forEach(file => {
+    file.tags.forEach(tag => allTags.add(tag));
+  });
+  return Array.from(allTags).sort();
+});
+
+function addTag() {
+  const tag = newTagValue.value.trim();
+  if (tag) {
+    targetFilesForTags.value.forEach(file => {
+      actions.addTag(file.id, tag);
+    });
+    newTagValue.value = '';
+  }
+}
+
+function removeTag(tag: string) {
+  targetFilesForTags.value.forEach(file => {
+    if (file.tags.includes(tag)) {
+      actions.removeTag(file.id, tag);
+    }
+  });
 }
 
 // Preview
@@ -569,6 +687,49 @@ function openPreview(file: FileItem) {
   overflow: hidden;
 }
 
+/* Tag Badges Overlay (Grid) */
+.file-tags {
+  position: absolute;
+  bottom: 4px;
+  right: 4px;
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap-reverse;
+  justify-content: flex-end;
+  pointer-events: none;
+}
+
+.tag-badge {
+  background: rgba(0, 0, 0, 0.6);
+  color: white;
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  backdrop-filter: blur(4px);
+}
+
+.file-info-row {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  overflow: hidden;
+}
+
+.list-tags {
+  display: flex;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.tag-badge-small {
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  font-size: 10px;
+  padding: 1px 4px;
+  border-radius: 3px;
+  border: 1px solid var(--border-color);
+}
+
 .grid-cover {
   width: 100%;
   height: calc(112px * var(--card-scale));
@@ -625,5 +786,91 @@ function openPreview(file: FileItem) {
   border: 1px solid rgba(0, 120, 215, 0.6);
   z-index: 100;
   pointer-events: none; /* Let clicks pass through */
+}
+
+/* Modal Styles */
+.modal-backdrop {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal {
+  background: var(--bg-primary);
+  padding: 20px;
+  border-radius: 8px;
+  width: 320px;
+  border: 1px solid var(--border-color);
+}
+
+.modal h3 {
+  margin: 0 0 16px 0;
+  font-size: 16px;
+  color: var(--text-primary);
+}
+
+.current-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.tag-chip {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  padding: 4px 10px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--text-primary);
+}
+
+.remove-tag {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+}
+
+.remove-tag:hover {
+  color: #ef4444;
+}
+
+.tag-input {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  margin-bottom: 16px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.close-btn {
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 4px;
+  color: var(--text-primary);
+  cursor: pointer;
+}
+
+.close-btn:hover {
+  background: var(--hover-color);
 }
 </style>

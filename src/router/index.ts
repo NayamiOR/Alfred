@@ -1,6 +1,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 import LibraryView from '../views/LibraryView.vue';
 import SettingView from '../views/SettingView.vue';
+import TagManageView from '../views/TagManageView.vue';
 
 const routes = [
   {
@@ -16,6 +17,11 @@ const routes = [
     path: '/settings',
     name: 'Settings',
     component: SettingView,
+  },
+  {
+    path: '/tags',
+    name: 'Tags',
+    component: TagManageView,
   },
 ];
 

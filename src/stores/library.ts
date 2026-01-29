@@ -17,6 +17,7 @@ export interface FileItem {
   size: number;
   mime_type: string;
   added_at: number;
+  tags: string[];
 }
 
 interface LibraryState {
@@ -25,12 +26,17 @@ interface LibraryState {
   currentLibraryId: string | null;
   isLoading: boolean;
   ui: {
+    viewMode: 'library' | 'tag';
     searchQuery: string;
     cardScale: number;
     isGridView: boolean;
     showFilterPanel: boolean;
     filters: {
       fileTypes: string[];
+    };
+    tagViewFilters: {
+      libraries: string[];
+      tags: string[];
     };
     sortConfig: {
       by: 'name' | 'added_at' | 'size' | 'extension';
@@ -39,12 +45,13 @@ interface LibraryState {
   };
 }
 
-export const libraryStore = reactive<LibraryState>({
+const initialLibraryState: LibraryState = {
   libraries: [],
   files: [],
   currentLibraryId: null,
   isLoading: false,
   ui: {
+    viewMode: 'library',
     searchQuery: '',
     cardScale: 1.0,
     isGridView: true,
@@ -52,15 +59,32 @@ export const libraryStore = reactive<LibraryState>({
     filters: {
       fileTypes: []
     },
+    tagViewFilters: {
+      libraries: [],
+      tags: []
+    },
     sortConfig: {
       by: 'added_at',
       order: 'desc'
     }
   }
-});
+};
+
+export const libraryStore = reactive<LibraryState>(initialLibraryState);
 
 export const currentFiles = computed(() => {
+  if (libraryStore.ui.viewMode === 'tag') {
+    return libraryStore.files; // Return all files for client-side filtering in tag mode
+  }
   return libraryStore.files;
+});
+
+export const allTags = computed(() => {
+  const tags = new Set<string>();
+  libraryStore.files.forEach(file => {
+    file.tags.forEach(tag => tags.add(tag));
+  });
+  return Array.from(tags).sort();
 });
 
 export const actions = {
@@ -121,6 +145,18 @@ export const actions = {
     }
   },
 
+  async loadAllFiles() {
+    libraryStore.isLoading = true;
+    try {
+      const files = await invoke<FileItem[]>('get_all_files');
+      libraryStore.files = files;
+    } catch (error) {
+      console.error('Failed to load all files:', error);
+    } finally {
+      libraryStore.isLoading = false;
+    }
+  },
+
   async addFiles(paths: string[]) {
     if (!libraryStore.currentLibraryId) return;
     try {
@@ -174,6 +210,59 @@ export const actions = {
       await invoke('copy_file_to_clipboard', { path });
     } catch (error) {
       console.error('Failed to copy file:', error);
+    }
+  },
+
+  async addTag(fileId: string, tag: string) {
+    try {
+      await invoke('add_tag', { fileId, tag });
+      const file = libraryStore.files.find(f => f.id === fileId);
+      if (file && !file.tags.includes(tag)) {
+        file.tags.push(tag);
+      }
+    } catch (error) {
+      console.error('Failed to add tag:', error);
+    }
+  },
+
+  async removeTag(fileId: string, tag: string) {
+    try {
+      await invoke('remove_tag', { fileId, tag });
+      const file = libraryStore.files.find(f => f.id === fileId);
+      if (file) {
+        file.tags = file.tags.filter(t => t !== tag);
+      }
+    } catch (error) {
+      console.error('Failed to remove tag:', error);
+    }
+  },
+
+  async renameTag(oldTag: string, newTag: string) {
+    try {
+      await invoke('rename_tag', { oldTag, newTag });
+      libraryStore.files.forEach(file => {
+        const index = file.tags.indexOf(oldTag);
+        if (index !== -1) {
+          if (!file.tags.includes(newTag)) {
+            file.tags[index] = newTag;
+          } else {
+            file.tags.splice(index, 1);
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to rename tag:', error);
+    }
+  },
+
+  async deleteTag(tag: string) {
+    try {
+      await invoke('delete_tag', { tag });
+      libraryStore.files.forEach(file => {
+        file.tags = file.tags.filter(t => t !== tag);
+      });
+    } catch (error) {
+      console.error('Failed to delete tag:', error);
     }
   }
 };

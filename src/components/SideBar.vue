@@ -1,6 +1,7 @@
 <template>
   <aside class="sidebar">
-    <div class="library-list">
+    <!-- Library Mode -->
+    <div v-if="libraryStore.ui.viewMode === 'library'" class="library-list">
       <div class="sidebar-header">
         <h2>Libraries</h2>
       </div>
@@ -18,7 +19,6 @@
         <div class="lib-options" @click.stop="showContextMenu($event, lib)">⋮</div>
       </div>
       
-      <!-- Inline Input for New Library -->
       <div v-if="isCreating" class="library-item creating">
         <div class="lib-icon">📁</div>
         <input 
@@ -33,10 +33,78 @@
       </div>
     </div>
 
+    <!-- Tag Mode -->
+    <div v-else class="library-list">
+      <div class="sidebar-header">
+        <h2>Filters</h2>
+      </div>
+
+      <!-- Library Filter -->
+      <div class="filter-group">
+        <h3>Libraries</h3>
+        <div class="checkbox-list">
+          <label v-for="lib in libraryStore.libraries" :key="lib.id" class="filter-item">
+            <input 
+              type="checkbox" 
+              :value="lib.id"
+              v-model="libraryStore.ui.tagViewFilters.libraries"
+            >
+            <span>{{ lib.name }}</span>
+          </label>
+        </div>
+      </div>
+
+      <!-- Tag Filter -->
+      <div class="filter-group">
+        <h3>Tags</h3>
+        <div class="checkbox-list">
+          <!-- Untagged Option -->
+          <label class="filter-item">
+            <input 
+              type="checkbox" 
+              :checked="isUntaggedSelected"
+              @change="toggleUntagged"
+            >
+            <span class="untagged-label">Untagged</span>
+          </label>
+
+          <div v-if="allTags.length === 0" class="empty-msg">No custom tags yet.</div>
+          
+          <template v-else>
+            <!-- Select All Option -->
+            <label class="filter-item">
+              <input 
+                type="checkbox" 
+                :checked="areAllTagsSelected"
+                @change="toggleAllTags"
+              >
+              <span>Select All Tags</span>
+            </label>
+
+            <label v-for="tag in allTags" :key="tag" class="filter-item">
+              <input 
+                type="checkbox" 
+                :checked="libraryStore.ui.tagViewFilters.tags.includes(tag)"
+                @change="toggleTag(tag)"
+              >
+              <span>{{ tag }}</span>
+            </label>
+          </template>
+        </div>
+      </div>
+    </div>
+
     <div class="sidebar-footer">
-      <button class="add-lib-btn" @click="startCreate">
-        <span>+</span> New Library
-      </button>
+      <template v-if="libraryStore.ui.viewMode === 'library'">
+        <button class="add-lib-btn" @click="startCreate">
+          <span>+</span> New Library
+        </button>
+      </template>
+      <template v-else>
+        <router-link to="/tags" class="add-lib-btn" title="Manage Tags">
+          <span>⚙️</span> Manage Tags
+        </router-link>
+      </template>
     </div>
 
     <ContextMenu 
@@ -50,14 +118,63 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick, reactive } from 'vue';
-import { libraryStore, actions } from '../stores/library';
+import { onMounted, ref, nextTick, reactive, computed } from 'vue';
+import { libraryStore, actions, allTags } from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
 
 const isCreating = ref(false);
 const newLibName = ref('');
 const newLibInput = ref<HTMLInputElement | null>(null);
 
+// Tag Selection Logic
+const isUntaggedSelected = computed(() => libraryStore.ui.tagViewFilters.tags.includes('_untagged_'));
+
+const areAllTagsSelected = computed(() => {
+  const selected = libraryStore.ui.tagViewFilters.tags;
+  // Check if all tags are present AND untagged is NOT present
+  return allTags.value.length > 0 && 
+         allTags.value.every(t => selected.includes(t)) && 
+         !selected.includes('_untagged_');
+});
+
+function toggleUntagged() {
+  if (isUntaggedSelected.value) {
+    // Deselect untagged
+    libraryStore.ui.tagViewFilters.tags = [];
+  } else {
+    // Select untagged, clear everything else
+    libraryStore.ui.tagViewFilters.tags = ['_untagged_'];
+  }
+}
+
+function toggleAllTags() {
+  if (areAllTagsSelected.value) {
+    // Deselect all
+    libraryStore.ui.tagViewFilters.tags = [];
+  } else {
+    // Select all tags, clear untagged
+    libraryStore.ui.tagViewFilters.tags = [...allTags.value];
+  }
+}
+
+function toggleTag(tag: string) {
+  const selected = libraryStore.ui.tagViewFilters.tags;
+  
+  // If untagged was selected, clear it first
+  if (selected.includes('_untagged_')) {
+    libraryStore.ui.tagViewFilters.tags = [tag];
+    return;
+  }
+
+  const index = selected.indexOf(tag);
+  if (index === -1) {
+    selected.push(tag);
+  } else {
+    selected.splice(index, 1);
+  }
+}
+
+// ... existing script content ...
 // Load libraries on mount if empty
 onMounted(() => {
   if (libraryStore.libraries.length === 0) {
@@ -126,6 +243,7 @@ function handleMenuAction(action: string) {
   transition: all 0.3s ease;
 }
 
+/* ... existing styles ... */
 .sidebar-header {
   padding: 20px 16px 10px;
 }
@@ -220,6 +338,7 @@ function handleMenuAction(action: string) {
   cursor: pointer;
   font-size: 13px;
   transition: all 0.2s;
+  text-decoration: none;
 }
 
 .add-lib-btn:hover {
@@ -236,5 +355,63 @@ function handleMenuAction(action: string) {
   color: var(--text-primary);
   width: 100%;
   border-bottom: 1px solid var(--text-secondary);
+}
+
+/* New Filter Styles */
+.filter-group {
+  margin-bottom: 24px;
+  padding: 0 12px;
+}
+
+.filter-group h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+  margin: 0 0 12px 4px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+.checkbox-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.filter-item {
+  display: flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text-primary);
+  transition: all 0.2s;
+  user-select: none;
+}
+
+.filter-item:hover {
+  background-color: var(--hover-color);
+}
+
+.filter-item input {
+  margin-right: 10px;
+  accent-color: var(--text-secondary);
+  cursor: pointer;
+  width: 14px;
+  height: 14px;
+}
+
+.empty-msg {
+  font-size: 13px;
+  color: var(--text-secondary);
+  padding: 8px 10px;
+  font-style: italic;
+  opacity: 0.8;
+}
+
+.untagged-label {
+  font-style: italic;
+  color: var(--text-secondary);
 }
 </style>

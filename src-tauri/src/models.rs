@@ -24,6 +24,8 @@ pub struct FileItem {
     pub size: u64,
     pub mime_type: String,
     pub added_at: i64,
+    #[serde(default)]
+    pub tags: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize, Default, Clone)]

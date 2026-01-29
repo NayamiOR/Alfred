@@ -2,8 +2,23 @@
   <nav class="shortcut-bar">
 
     <div class="top-icons">
-      <router-link to="/library" class="icon-button" title="Resource Library">
+      <router-link 
+        to="/library" 
+        class="icon-button" 
+        title="Resource Library" 
+        @click="switchToLibraryMode"
+        :class="{ active: libraryStore.ui.viewMode === 'library' && route.path === '/library' }"
+      >
         <span>&#128193;</span>
+      </router-link>
+      <router-link 
+        to="/library" 
+        class="icon-button" 
+        title="Tags View" 
+        @click="switchToTagMode"
+        :class="{ active: libraryStore.ui.viewMode === 'tag' && route.path === '/library' }"
+      >
+        <span>#</span>
       </router-link>
     </div>
 
@@ -25,8 +40,25 @@
 </template>
 
 <script setup lang="ts">
+import { useRoute } from 'vue-router';
+import { libraryStore, actions } from '../stores/library';
+
 defineProps<{ isDarkMode: boolean }>();
 defineEmits(['toggle-dark-mode']);
+
+const route = useRoute();
+
+function switchToLibraryMode() {
+  libraryStore.ui.viewMode = 'library';
+  if (libraryStore.currentLibraryId) {
+    actions.loadFiles(libraryStore.currentLibraryId);
+  }
+}
+
+function switchToTagMode() {
+  libraryStore.ui.viewMode = 'tag';
+  actions.loadAllFiles();
+}
 </script>
 
 <style scoped>
@@ -47,6 +79,13 @@ defineEmits(['toggle-dark-mode']);
   font-size: 18px; color: var(--text-secondary); text-decoration: none; display: flex;
   justify-content: center; align-items: center; width: 40px; height: 40px; border-radius: 8px;
   transition: color 0.3s ease, background-color 0.3s ease;
+}
+
+.icon-button.active {
+  color: var(--text-primary);
+  background-color: var(--bg-secondary);
+  border-left: 3px solid var(--text-primary);
+  border-radius: 4px;
 }
 
 .icon-button:hover { 

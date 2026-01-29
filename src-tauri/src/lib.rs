@@ -132,6 +132,7 @@ fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> 
             size,
             mime_type,
             added_at: Utc::now().timestamp_millis(),
+            tags: Vec::new(),
         };
         new_files.push(file_item.clone());
         data.files.push(file_item);
@@ -154,6 +155,69 @@ fn delete_file(id: String, state: State<AppState>) {
     let mut data = state.data.lock().unwrap();
     data.files.retain(|f| f.id != id);
     save_to_disk(&data, &state.file_path);
+}
+
+#[tauri::command]
+fn add_tag(file_id: String, tag: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    if let Some(file) = data.files.iter_mut().find(|f| f.id == file_id) {
+        if !file.tags.contains(&tag) {
+            file.tags.push(tag);
+            save_to_disk(&data, &state.file_path);
+        }
+    }
+}
+
+#[tauri::command]
+fn remove_tag(file_id: String, tag: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    if let Some(file) = data.files.iter_mut().find(|f| f.id == file_id) {
+        if let Some(pos) = file.tags.iter().position(|t| t == &tag) {
+            file.tags.remove(pos);
+            save_to_disk(&data, &state.file_path);
+        }
+    }
+}
+
+#[tauri::command]
+fn rename_tag(old_tag: String, new_tag: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    let mut changed = false;
+    for file in data.files.iter_mut() {
+        if let Some(pos) = file.tags.iter().position(|t| t == &old_tag) {
+            if !file.tags.contains(&new_tag) {
+                file.tags[pos] = new_tag.clone();
+            } else {
+                // If new tag already exists on this file, just remove the old one to avoid duplicates
+                file.tags.remove(pos);
+            }
+            changed = true;
+        }
+    }
+    if changed {
+        save_to_disk(&data, &state.file_path);
+    }
+}
+
+#[tauri::command]
+fn delete_tag(tag: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    let mut changed = false;
+    for file in data.files.iter_mut() {
+        if let Some(pos) = file.tags.iter().position(|t| t == &tag) {
+            file.tags.remove(pos);
+            changed = true;
+        }
+    }
+    if changed {
+        save_to_disk(&data, &state.file_path);
+    }
+}
+
+#[tauri::command]
+fn get_all_files(state: State<AppState>) -> Vec<FileItem> {
+    let data = state.data.lock().unwrap();
+    data.files.clone()
 }
 
 #[tauri::command]
@@ -272,9 +336,14 @@ pub fn run() {
             create_library,
             delete_library,
             get_files,
+            get_all_files,
             add_files,
             delete_file,
             delete_files,
+            add_tag,
+            remove_tag,
+            rename_tag,
+            delete_tag,
             open_file_default,
             show_in_explorer,
             copy_file_to_clipboard
