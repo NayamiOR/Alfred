@@ -56,7 +56,9 @@ export default {
   library: {
     searchPlaceholder: '搜索文件...',
     cardSize: '卡片大小',
+    add: '添加',
     addFiles: '添加文件',
+    addFolders: '添加文件夹',
     toggleSidebar: '切换侧边栏',
     cardView: '卡片视图',
     listView: '列表视图',

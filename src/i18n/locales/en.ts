@@ -56,7 +56,9 @@ export default {
   library: {
     searchPlaceholder: 'Search files...',
     cardSize: 'Card Size',
+    add: 'Add',
     addFiles: 'Add Files',
+    addFolders: 'Add Folders',
     toggleSidebar: 'Toggle Sidebar',
     cardView: 'Card View',
     listView: 'List View',

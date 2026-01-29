@@ -9,7 +9,7 @@
         @click="switchToLibraryMode"
         :class="{ active: libraryStore.ui.viewMode === 'library' && route.path === '/library' }"
       >
-        <span>&#128193;</span>
+        <v-icon name="px-archive" scale="1.2" />
       </router-link>
       <router-link 
         to="/library" 
@@ -18,7 +18,7 @@
         @click="switchToTagMode"
         :class="{ active: libraryStore.ui.viewMode === 'tag' && route.path === '/library' }"
       >
-        <span>#</span>
+        <v-icon name="co-tags" scale="1.2" />
       </router-link>
     </div>
 
@@ -28,12 +28,12 @@
         class="icon-button" 
         :title="isDarkMode ? t('shortcutBar.lightMode') : t('shortcutBar.darkMode')"
       >
-        <span v-if="isDarkMode">&#x2600;</span>
-        <span v-else>&#x263E;</span>
+        <v-icon v-if="isDarkMode" name="co-sun" scale="1.2" />
+        <v-icon v-else name="co-moon" scale="1.2" />
       </button>
       
       <router-link to="/settings" class="icon-button" :title="t('shortcutBar.settings')">
-        <span>&#x2699;</span>
+        <v-icon name="co-settings" scale="1.2" />
       </router-link>
     </div>
   </nav>
@@ -43,6 +43,7 @@
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { libraryStore, actions } from '../stores/library';
+
 
 const { t } = useI18n();
 defineProps<{ isDarkMode: boolean }>();

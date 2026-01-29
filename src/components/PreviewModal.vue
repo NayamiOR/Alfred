@@ -8,7 +8,11 @@
         <video controls autoplay :src="fileUrl"></video>
       </div>
       <div v-else class="preview-generic">
-        <div class="icon">{{ fileType.toUpperCase() }}</div>
+        <div class="icon">
+          <v-icon v-if="mimeType.startsWith('audio/')" name="fc-audio-file" scale="4" />
+          <v-icon v-else-if="isDocument" name="fc-document" scale="4" />
+          <v-icon v-else name="fc-file" scale="4" />
+        </div>
         <div class="filename">{{ fileName }}</div>
         <div class="hint">{{ t('library.previewNotAvailable') }}</div>
         <button @click="$emit('open')">{{ t('library.openFile') }}</button>
@@ -51,6 +55,11 @@ const isImage = computed(() => {
 
 const isVideo = computed(() => {
   return props.mimeType.startsWith('video/') || ['mp4', 'webm', 'mov', 'avi'].includes(props.fileType.toLowerCase());
+});
+
+const isDocument = computed(() => {
+  const docs = ['pdf', 'doc', 'docx', 'txt', 'md', 'markdown', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'json', 'xml', 'epub'];
+  return docs.includes(props.fileType.toLowerCase());
 });
 </script>
 

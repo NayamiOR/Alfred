@@ -1,7 +1,7 @@
 {
   "name": "alfred",
   "private": true,
-  "version": "0.2.0",
+  "version": "0.2.1",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -16,6 +16,7 @@
     "@tauri-apps/plugin-dialog": "^2.6.0",
     "@tauri-apps/plugin-fs": "~2.4.5",
     "@tauri-apps/plugin-opener": "^2",
+    "oh-vue-icons": "1.0.0-rc3",
     "vue": "^3.5.13",
     "vue-i18n": "^9.14.5",
     "vue-router": "^4.6.4"

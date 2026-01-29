@@ -48,7 +48,9 @@
         ref="fileItemRefs"
       >
         <div :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
-          <div v-if="file.extension === 'folder'" class="folder-icon">📁</div>
+          <div v-if="file.extension === 'folder'" class="folder-icon">
+            <v-icon name="fc-folder" :scale="libraryStore.ui.isGridView ? 3.5 : 1.2" />
+          </div>
           <img 
             v-else-if="file.mime_type.startsWith('image/') && !failedImageIds.has(file.id)" 
             :src="convertFileSrc(file.path)" 
@@ -57,8 +59,11 @@
             @error="onImageError(file.id)"
           />
           <div v-else class="cover-placeholder">
-            <span v-if="file.mime_type.startsWith('image/')">🖼️</span>
-            <span v-else>{{ file.extension.toUpperCase() }}</span>
+            <v-icon v-if="file.mime_type.startsWith('image/')" name="fc-image-file" :scale="libraryStore.ui.isGridView ? 3.5 : 1.2" />
+            <v-icon v-else-if="file.mime_type.startsWith('video/')" name="fc-video-file" :scale="libraryStore.ui.isGridView ? 3.5 : 1.2" />
+            <v-icon v-else-if="file.mime_type.startsWith('audio/')" name="fc-audio-file" :scale="libraryStore.ui.isGridView ? 3.5 : 1.2" />
+            <v-icon v-else-if="isDocument(file.extension)" name="fc-document" :scale="libraryStore.ui.isGridView ? 3.5 : 1.2" />
+            <v-icon v-else name="fc-file" :scale="libraryStore.ui.isGridView ? 3.5 : 1.2" />
           </div>
           
           <!-- Tag Badges Overlay -->
@@ -141,6 +146,11 @@ const failedImageIds = ref<Set<string>>(new Set());
 
 function onImageError(id: string) {
   failedImageIds.value.add(id);
+}
+
+function isDocument(ext: string) {
+  const docs = ['pdf', 'doc', 'docx', 'txt', 'md', 'markdown', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'json', 'xml', 'epub'];
+  return docs.includes(ext.toLowerCase());
 }
 
 // Selection Rectangle Logic
@@ -734,16 +744,13 @@ function openPreview(file: FileItem) {
   font-weight: 600;
 }
 
-.folder-icon {
-  font-size: 48px;
+.folder-icon, .cover-placeholder {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
 }
-
-.list-cover .folder-icon {
-  font-size: 20px;
-}
-
-.grid-cover .cover-placeholder { font-size: 24px; }
-.list-cover .cover-placeholder { font-size: 10px; }
 
 .file-name {
   color: var(--text-primary);

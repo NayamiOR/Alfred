@@ -1,13 +1,13 @@
 <template>
   <div class="library-top-bar" data-tauri-drag-region>
     <button @click="toggleSidebar" class="toggle-button" :title="t('library.toggleSidebar')" data-tauri-drag-region="false">
-      <span>&#x2194;</span>
+      <v-icon name="co-expand-right" />
     </button>
     
     <!-- Left Toolbar (Search & Scale) -->
     <div class="toolbar-section" data-tauri-drag-region="false">
       <div class="search-bar">
-        <span class="search-icon">&#128269;</span>
+        <v-icon name="co-search" class="search-icon" />
         <input 
           v-model="libraryStore.ui.searchQuery" 
           :placeholder="t('library.searchPlaceholder')" 
@@ -27,10 +27,18 @@
         />
       </div>
 
-      <button class="add-btn" @click="triggerAddFile" :title="t('library.addFiles')">
-        <span>+</span>
+      <button ref="addButton" class="add-btn" @click="showAddMenu" :title="t('library.add')">
+        <v-icon name="co-plus" />
       </button>
     </div>
+
+    <ContextMenu 
+      :visible="addMenuVisible" 
+      :position="addMenuPosition" 
+      :items="addMenuItems"
+      @close="addMenuVisible = false"
+      @action="handleMenuAction"
+    />
 
     <div class="spacer"></div>
 
@@ -46,7 +54,7 @@
         class="filter-button" 
         :class="{ active: libraryStore.ui.showFilterPanel }"
       >
-        <span>☰</span>
+        <v-icon name="co-hamburger-menu" />
       </button>
     </div>
 
@@ -55,22 +63,52 @@
 </template>
 
 <script setup lang="ts">
+import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import WindowControls from '../WindowControls.vue';
+import ContextMenu from '../ContextMenu.vue';
 import { libraryStore, actions } from '../../stores/library';
 import { open } from '@tauri-apps/plugin-dialog';
 
 const { t } = useI18n();
 
+const addButton = ref<HTMLElement | null>(null);
+const addMenuVisible = ref(false);
+const addMenuPosition = ref({ x: 0, y: 0 });
+
+const addMenuItems = computed(() => [
+  { label: t('library.addFiles'), action: 'add-files' },
+  { label: t('library.addFolders'), action: 'add-folders' }
+]);
+
 function toggleSidebar() {
   window.dispatchEvent(new CustomEvent('toggle-sidebar'));
 }
 
-async function triggerAddFile() {
+function showAddMenu() {
+  if (addButton.value) {
+    const rect = addButton.value.getBoundingClientRect();
+    addMenuPosition.value = {
+      x: rect.left,
+      y: rect.bottom + 4
+    };
+    addMenuVisible.value = true;
+  }
+}
+
+async function handleMenuAction(action: string) {
+  if (action === 'add-files') {
+    await triggerAdd(false);
+  } else if (action === 'add-folders') {
+    await triggerAdd(true);
+  }
+}
+
+async function triggerAdd(isFolder: boolean) {
   try {
     const selected = await open({
       multiple: true,
-      directory: true, 
+      directory: isFolder, 
     });
     
     if (selected) {
@@ -78,7 +116,7 @@ async function triggerAddFile() {
       await actions.addFiles(paths);
     }
   } catch (err) {
-    console.error("Failed to open file dialog:", err);
+    console.error(`Failed to add ${isFolder ? 'folders' : 'files'}:`, err);
   }
 }
 </script>

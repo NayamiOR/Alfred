@@ -13,13 +13,18 @@
         @click="selectLibrary(lib.id)"
         @contextmenu.prevent="showContextMenu($event, lib)"
       >
-        <div class="lib-icon">{{ lib.icon }}</div>
+        <div class="lib-icon">
+          <v-icon v-if="lib.icon === '📁'" name="px-archive" scale="1.1" />
+          <template v-else>{{ lib.icon }}</template>
+        </div>
         <div class="lib-name">{{ lib.name }}</div>
-        <div class="lib-options" @click.stop="showContextMenu($event, lib)">⋮</div>
+        <div class="lib-options" @click.stop="showContextMenu($event, lib)">
+          <v-icon name="co-hamburger-menu" scale="0.8" />
+        </div>
       </div>
       
       <div v-if="isCreating" class="library-item creating">
-        <div class="lib-icon">📁</div>
+        <div class="lib-icon"><v-icon name="px-archive" scale="1.1" /></div>
         <input 
           ref="newLibInput"
           v-model="newLibName" 
@@ -91,12 +96,12 @@
     <div class="sidebar-footer">
       <template v-if="libraryStore.ui.viewMode === 'library'">
         <button class="add-lib-btn" @click="startCreate">
-          <span>+</span> {{ t('sidebar.newLibrary') }}
+          <v-icon name="co-plus" scale="0.8" /> {{ t('sidebar.newLibrary') }}
         </button>
       </template>
       <template v-else>
         <router-link to="/tags" class="add-lib-btn" :title="t('sidebar.manageTags')">
-          <span>⚙️</span> {{ t('sidebar.manageTags') }}
+          <v-icon name="co-settings" scale="0.8" /> {{ t('sidebar.manageTags') }}
         </router-link>
       </template>
     </div>
@@ -282,6 +287,11 @@ function handleMenuAction(action: string) {
 .lib-icon {
   margin-right: 10px;
   font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
 }
 
 .lib-name {
