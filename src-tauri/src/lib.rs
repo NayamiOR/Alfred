@@ -15,6 +15,26 @@ use tauri::{
 use tauri_plugin_fs::FsExt;
 use uuid::Uuid;
 
+// i18n
+use i18n_embed::{fluent::FluentLanguageLoader, DesktopLanguageRequester, LanguageRequester};
+use once_cell::sync::Lazy;
+use rust_embed::RustEmbed;
+
+#[derive(RustEmbed)]
+#[folder = "i18n/"]
+struct Localizations;
+
+static LANGUAGE_LOADER: Lazy<FluentLanguageLoader> = Lazy::new(|| {
+    let loader = i18n_embed::fluent::fluent_language_loader!();
+    let requested_languages = DesktopLanguageRequester::new().requested_languages();
+    let _ = i18n_embed::select(&loader, &Localizations, &requested_languages);
+    loader
+});
+
+fn get_localized_string(key: &str) -> String {
+    LANGUAGE_LOADER.get(key)
+}
+
 // Helper to save data without re-locking
 fn save_to_disk(data: &AppData, file_path: &Path) {
     if let Ok(content) = serde_json::to_string_pretty(data) {
@@ -245,12 +265,14 @@ fn show_in_explorer(path: String) -> Result<(), String> {
 fn copy_file_to_clipboard(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
+        use std::os::windows::process::CommandExt;
         Command::new("powershell")
             .args([
                 "-NoProfile",
                 "-Command",
-                &format!("Set-Clipboard -Path '{}'", path),
+                &format!("Set-Clipboard -Path '{}'", path.replace("'", "''")),
             ])
+            .creation_flags(0x08000000) // CREATE_NO_WINDOW
             .spawn()
             .map_err(|e| e.to_string())?;
         Ok(())
@@ -287,8 +309,20 @@ pub fn run() {
             app.manage(state);
 
             // System Tray Setup
-            let quit_i = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let show_i = MenuItem::with_id(app, "show", "Open Alfred", true, None::<&str>)?;
+            let quit_i = MenuItem::with_id(
+                app,
+                "quit",
+                &get_localized_string("tray-menu-quit"),
+                true,
+                None::<&str>,
+            )?;
+            let show_i = MenuItem::with_id(
+                app,
+                "show",
+                &get_localized_string("tray-menu-show"),
+                true,
+                None::<&str>,
+            )?;
             let menu = Menu::with_items(app, &[&show_i, &quit_i])?;
 
             let _tray = TrayIconBuilder::with_id("tray")

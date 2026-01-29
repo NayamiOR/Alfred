@@ -27,6 +27,18 @@
   "bundle": {
     "active": true,
     "targets": "all",
+    "windows": {
+      "wix": {
+        "language": {
+          "en-US": {
+            "localePath": "./wix/locales/en-US.wxl"
+          },
+          "zh-CN": {
+            "localePath": "./wix/locales/zh-CN.wxl"
+          }
+        }
+      }
+    },
     "icon": [
       "icons/icon.ico"
     ]

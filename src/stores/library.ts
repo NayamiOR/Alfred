@@ -42,6 +42,11 @@ interface LibraryState {
       by: 'name' | 'added_at' | 'size' | 'extension';
       order: 'asc' | 'desc';
     };
+    dragState: {
+      isDragging: boolean;
+      type: 'accept' | 'reject';
+      message: string;
+    };
   };
 }
 
@@ -66,6 +71,11 @@ const initialLibraryState: LibraryState = {
     sortConfig: {
       by: 'added_at',
       order: 'desc'
+    },
+    dragState: {
+      isDragging: false,
+      type: 'accept',
+      message: ''
     }
   }
 };

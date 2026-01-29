@@ -1,22 +1,22 @@
 <template>
   <div class="filter-panel" @click.stop>
     <div class="filter-header">
-      <h3>Sort & Filter</h3>
+      <h3>{{ t('filter.title') }}</h3>
       <button @click="$emit('close')" class="close-button">&times;</button>
     </div>
 
     <div class="filter-content">
       <!-- Sort Section -->
       <div class="filter-section">
-        <h4>Sort By</h4>
+        <h4>{{ t('filter.sortBy') }}</h4>
         <div class="sort-options">
           <select :value="sort.by" @change="updateSortBy($event)" class="sort-select">
-            <option value="name">Name</option>
-            <option value="added_at">Date Added</option>
-            <option value="size">Size</option>
-            <option value="extension">Type</option>
+            <option value="name">{{ t('filter.name') }}</option>
+            <option value="added_at">{{ t('filter.dateAdded') }}</option>
+            <option value="size">{{ t('filter.size') }}</option>
+            <option value="extension">{{ t('filter.type') }}</option>
           </select>
-          <button @click="toggleSortOrder" class="sort-order-btn" :title="sort.order === 'asc' ? 'Ascending' : 'Descending'">
+          <button @click="toggleSortOrder" class="sort-order-btn" :title="sort.order === 'asc' ? t('filter.ascending') : t('filter.descending')">
             {{ sort.order === 'asc' ? '↑' : '↓' }}
           </button>
         </div>
@@ -27,10 +27,10 @@
       <!-- Filter Section -->
       <div class="filter-section">
         <div class="section-header">
-          <h4>File Types</h4>
+          <h4>{{ t('filter.fileTypes') }}</h4>
           <div class="type-actions">
-            <button @click="selectAllTypes" class="text-btn">All</button>
-            <button @click="deselectAllTypes" class="text-btn">None</button>
+            <button @click="selectAllTypes" class="text-btn">{{ t('filter.all') }}</button>
+            <button @click="deselectAllTypes" class="text-btn">{{ t('filter.none') }}</button>
           </div>
         </div>
         <div class="checkbox-grid">
@@ -48,13 +48,16 @@
     </div>
 
     <div class="filter-footer">
-      <button @click="resetAll" class="reset-btn">Reset Defaults</button>
+      <button @click="resetAll" class="reset-btn">{{ t('filter.resetDefaults') }}</button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { PropType } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+const { t } = useI18n();
 
 interface SortConfig {
   by: 'name' | 'added_at' | 'size' | 'extension';

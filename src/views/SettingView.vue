@@ -1,11 +1,21 @@
 <template>
   <div class="setting-view">
-    <h1>Settings</h1>
+    <h1>{{ t('settings.title') }}</h1>
     <div class="settings-container">
       <div class="setting-item">
         <div class="setting-info">
-          <span class="setting-label">Run on Startup</span>
-          <span class="setting-desc">Automatically start Alfred when you log in</span>
+          <span class="setting-label">{{ t('language.title') }}</span>
+        </div>
+        <select v-model="locale" @change="changeLanguage" class="language-select">
+          <option value="zh">{{ t('language.zh') }}</option>
+          <option value="en">{{ t('language.en') }}</option>
+        </select>
+      </div>
+      
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">{{ t('settings.autostart.label') }}</span>
+          <span class="setting-desc">{{ t('settings.autostart.desc') }}</span>
         </div>
         <label class="switch">
           <input type="checkbox" v-model="isAutoStartEnabled" @change="toggleAutoStart">
@@ -13,13 +23,23 @@
         </label>
       </div>
     </div>
+
+    <GlobalDragOverlay 
+      :visible="libraryStore.ui.dragState.isDragging" 
+      :message="libraryStore.ui.dragState.message" 
+      :type="libraryStore.ui.dragState.type" 
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, onMounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { isEnabled, enable, disable } from '@tauri-apps/plugin-autostart';
+import { libraryStore } from '../stores/library';
+import GlobalDragOverlay from '../components/GlobalDragOverlay.vue';
 
+const { t, locale } = useI18n();
 const isAutoStartEnabled = ref(false);
 
 onMounted(async () => {
@@ -30,6 +50,10 @@ onMounted(async () => {
   }
 });
 
+function changeLanguage() {
+  localStorage.setItem('locale', locale.value);
+}
+
 async function toggleAutoStart() {
   try {
     if (isAutoStartEnabled.value) {
@@ -39,7 +63,6 @@ async function toggleAutoStart() {
     }
   } catch (error) {
     console.error('Failed to toggle autostart:', error);
-    // Revert switch on error
     isAutoStartEnabled.value = !isAutoStartEnabled.value;
   }
 }
@@ -50,6 +73,7 @@ async function toggleAutoStart() {
   height: 100%;
   padding: 24px 32px;
   overflow-y: auto;
+  position: relative;
 }
 
 h1 {
@@ -93,7 +117,20 @@ h1 {
   color: var(--text-secondary);
 }
 
-/* Toggle Switch */
+.language-select {
+  padding: 6px 12px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-size: 14px;
+}
+
+.language-select:hover {
+  border-color: var(--text-primary);
+}
+
 .switch {
   position: relative;
   display: inline-block;

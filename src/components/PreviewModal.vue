@@ -10,8 +10,8 @@
       <div v-else class="preview-generic">
         <div class="icon">{{ fileType.toUpperCase() }}</div>
         <div class="filename">{{ fileName }}</div>
-        <div class="hint">Preview not available</div>
-        <button @click="$emit('open')">Open File</button>
+        <div class="hint">{{ t('library.previewNotAvailable') }}</div>
+        <button @click="$emit('open')">{{ t('library.openFile') }}</button>
       </div>
     </div>
     <button class="close-btn" @click="$emit('close')">&times;</button>
@@ -20,7 +20,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { convertFileSrc } from '@tauri-apps/api/core';
+
+const { t } = useI18n();
 
 const props = defineProps({
   visible: Boolean,

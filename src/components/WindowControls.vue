@@ -1,13 +1,13 @@
 <template>
   <div class="window-controls" data-tauri-drag-region="false">
-    <button @click="minimize" class="control-btn minimize" title="Minimize">
+    <button @click="minimize" class="control-btn minimize" :title="t('common.minimize')">
       <span>&#8722;</span>
     </button>
-    <button @click="toggleMaximize" class="control-btn maximize" :title="isMaximized ? 'Restore' : 'Maximize'">
+    <button @click="toggleMaximize" class="control-btn maximize" :title="isMaximized ? t('common.restore') : t('common.maximize')">
       <span v-if="isMaximized">&#9723;</span>
       <span v-else>&#9723;</span>
     </button>
-    <button @click="close" class="control-btn close" title="Close">
+    <button @click="close" class="control-btn close" :title="t('common.close')">
       <span>&#10005;</span>
     </button>
   </div>
@@ -15,8 +15,10 @@
 
 <script setup lang="ts">
 import { ref, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 
+const { t } = useI18n();
 const appWindow = getCurrentWindow();
 const isMaximized = ref(false);
 let unlisten: (() => void) | null = null;

@@ -1,13 +1,16 @@
 <template>
   <div class="settings-top-bar" data-tauri-drag-region>
-    <div class="title">设置</div>
+    <div class="title">{{ t('settings.title') }}</div>
     <div class="spacer"></div>
     <WindowControls />
   </div>
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import WindowControls from '../WindowControls.vue';
+
+const { t } = useI18n();
 </script>
 
 <style scoped>

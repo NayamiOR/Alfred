@@ -1,9 +1,8 @@
 <template>
   <aside class="sidebar">
-    <!-- Library Mode -->
     <div v-if="libraryStore.ui.viewMode === 'library'" class="library-list">
       <div class="sidebar-header">
-        <h2>Libraries</h2>
+        <h2>{{ t('sidebar.libraries') }}</h2>
       </div>
       
       <div 
@@ -28,20 +27,18 @@
           @keydown.esc="cancelCreate"
           @blur="cancelCreate"
           class="new-lib-input"
-          placeholder="Library Name"
+          :placeholder="t('sidebar.libraryName')"
         />
       </div>
     </div>
 
-    <!-- Tag Mode -->
     <div v-else class="library-list">
       <div class="sidebar-header">
-        <h2>Filters</h2>
+        <h2>{{ t('sidebar.filters') }}</h2>
       </div>
 
-      <!-- Library Filter -->
       <div class="filter-group">
-        <h3>Libraries</h3>
+        <h3>{{ t('sidebar.libraries') }}</h3>
         <div class="checkbox-list">
           <label v-for="lib in libraryStore.libraries" :key="lib.id" class="filter-item">
             <input 
@@ -54,31 +51,28 @@
         </div>
       </div>
 
-      <!-- Tag Filter -->
       <div class="filter-group">
-        <h3>Tags</h3>
+        <h3>{{ t('sidebar.tags') }}</h3>
         <div class="checkbox-list">
-          <!-- Untagged Option -->
           <label class="filter-item">
             <input 
               type="checkbox" 
               :checked="isUntaggedSelected"
               @change="toggleUntagged"
             >
-            <span class="untagged-label">Untagged</span>
+            <span class="untagged-label">{{ t('sidebar.untagged') }}</span>
           </label>
 
-          <div v-if="allTags.length === 0" class="empty-msg">No custom tags yet.</div>
+          <div v-if="allTags.length === 0" class="empty-msg">{{ t('sidebar.noTags') }}</div>
           
           <template v-else>
-            <!-- Select All Option -->
             <label class="filter-item">
               <input 
                 type="checkbox" 
                 :checked="areAllTagsSelected"
                 @change="toggleAllTags"
               >
-              <span>Select All Tags</span>
+              <span>{{ t('sidebar.selectAll') }}</span>
             </label>
 
             <label v-for="tag in allTags" :key="tag" class="filter-item">
@@ -97,12 +91,12 @@
     <div class="sidebar-footer">
       <template v-if="libraryStore.ui.viewMode === 'library'">
         <button class="add-lib-btn" @click="startCreate">
-          <span>+</span> New Library
+          <span>+</span> {{ t('sidebar.newLibrary') }}
         </button>
       </template>
       <template v-else>
-        <router-link to="/tags" class="add-lib-btn" title="Manage Tags">
-          <span>⚙️</span> Manage Tags
+        <router-link to="/tags" class="add-lib-btn" :title="t('sidebar.manageTags')">
+          <span>⚙️</span> {{ t('sidebar.manageTags') }}
         </router-link>
       </template>
     </div>
@@ -119,9 +113,11 @@
 
 <script setup lang="ts">
 import { onMounted, ref, nextTick, reactive, computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { libraryStore, actions, allTags } from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
 
+const { t } = useI18n();
 const isCreating = ref(false);
 const newLibName = ref('');
 const newLibInput = ref<HTMLInputElement | null>(null);
@@ -220,7 +216,7 @@ function showContextMenu(e: MouseEvent, lib: any) {
   contextMenu.targetLib = lib;
   contextMenu.position = { x: e.clientX, y: e.clientY };
   contextMenu.items = [
-    { label: 'Delete', action: 'delete' }
+    { label: t('sidebar.delete'), action: 'delete' }
   ];
   contextMenu.visible = true;
 }
@@ -388,6 +384,7 @@ function handleMenuAction(action: string) {
   color: var(--text-primary);
   transition: all 0.2s;
   user-select: none;
+  overflow: hidden; /* Prevent content from spilling out */
 }
 
 .filter-item:hover {
@@ -400,6 +397,14 @@ function handleMenuAction(action: string) {
   cursor: pointer;
   width: 14px;
   height: 14px;
+  flex-shrink: 0; /* Don't squash the checkbox */
+}
+
+.filter-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
 }
 
 .empty-msg {

@@ -1,54 +1,62 @@
 <template>
   <div class="tag-manage-view">
     <div class="header">
-      <button @click="goBack" class="back-btn">← Back</button>
-      <h2>Manage Tags</h2>
+      <button @click="goBack" class="back-btn">← {{ t('tagManage.back') }}</button>
+      <h2>{{ t('tagManage.title') }}</h2>
     </div>
 
     <div class="content">
       <div v-if="allTags.length === 0" class="empty-state">
-        No tags found. Add tags to files to manage them here.
+        {{ t('tagManage.noTags') }}
       </div>
       
       <div v-else class="tag-list">
         <div v-for="tag in allTags" :key="tag" class="tag-row">
           <div class="tag-info">
             <span class="tag-badge">{{ tag }}</span>
-            <span class="tag-count">{{ getFileCount(tag) }} files</span>
+            <span class="tag-count">{{ getFileCount(tag) }} {{ t('tagManage.files') }}</span>
           </div>
           <div class="tag-actions">
-            <button @click="startRename(tag)" class="action-btn">Rename</button>
-            <button @click="confirmDelete(tag)" class="action-btn delete">Delete</button>
+            <button @click="startRename(tag)" class="action-btn">{{ t('tagManage.rename') }}</button>
+            <button @click="deleteTag(tag)" class="action-btn delete">{{ t('tagManage.delete') }}</button>
           </div>
         </div>
       </div>
     </div>
 
-    <!-- Rename Modal -->
     <div v-if="editingTag" class="modal-backdrop" @click="cancelRename">
       <div class="modal" @click.stop>
-        <h3>Rename Tag</h3>
+        <h3>{{ t('tagManage.renameTitle') }}</h3>
         <input 
           v-model="newTagName" 
           @keyup.enter="finishRename"
           @keyup.esc="cancelRename"
           ref="renameInput"
-          placeholder="New tag name"
+          :placeholder="t('tagManage.newName')"
         />
         <div class="modal-actions">
-          <button @click="cancelRename">Cancel</button>
-          <button @click="finishRename" class="primary">Save</button>
+          <button @click="cancelRename">{{ t('tagManage.cancel') }}</button>
+          <button @click="finishRename" class="primary">{{ t('tagManage.save') }}</button>
         </div>
       </div>
     </div>
+
+    <GlobalDragOverlay 
+      :visible="libraryStore.ui.dragState.isDragging" 
+      :message="libraryStore.ui.dragState.message" 
+      :type="libraryStore.ui.dragState.type" 
+    />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, nextTick } from 'vue';
 import { useRouter } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { libraryStore, allTags, actions } from '../stores/library';
+import GlobalDragOverlay from '../components/GlobalDragOverlay.vue';
 
+const { t } = useI18n();
 const router = useRouter();
 const editingTag = ref<string | null>(null);
 const newTagName = ref('');
@@ -79,10 +87,8 @@ function cancelRename() {
   editingTag.value = null;
 }
 
-async function confirmDelete(tag: string) {
-  if (confirm(`Are you sure you want to delete the tag "${tag}"? This will remove it from all files.`)) {
-    await actions.deleteTag(tag);
-  }
+async function deleteTag(tag: string) {
+  await actions.deleteTag(tag);
 }
 </script>
 
@@ -93,6 +99,7 @@ async function confirmDelete(tag: string) {
   flex-direction: column;
   background-color: var(--bg-primary);
   color: var(--text-primary);
+  position: relative;
 }
 
 .header {
@@ -140,6 +147,8 @@ async function confirmDelete(tag: string) {
   display: flex;
   align-items: center;
   gap: 12px;
+  overflow: hidden; /* Allow content to shrink */
+  flex: 1;
 }
 
 .tag-badge {
@@ -147,6 +156,10 @@ async function confirmDelete(tag: string) {
   padding: 4px 8px;
   border-radius: 4px;
   font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 250px; /* Sensible limit for the badge itself */
 }
 
 .tag-count {

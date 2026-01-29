@@ -4,7 +4,14 @@
     :class="{ 'sidebar-hidden': !isSidebarVisible }"
   >
     <SideBar />
-    <FileLibrary />
+    <div class="main-content-wrapper">
+      <FileLibrary />
+      <GlobalDragOverlay 
+        :visible="libraryStore.ui.dragState.isDragging" 
+        :message="libraryStore.ui.dragState.message" 
+        :type="libraryStore.ui.dragState.type" 
+      />
+    </div>
   </div>
 </template>
 
@@ -12,6 +19,8 @@
 import { ref, onMounted } from 'vue';
 import FileLibrary from '../components/FileLibrary.vue';
 import SideBar from '../components/SideBar.vue';
+import GlobalDragOverlay from '../components/GlobalDragOverlay.vue';
+import { libraryStore } from '../stores/library';
 
 const isSidebarVisible = ref(true);
 
@@ -33,6 +42,13 @@ onMounted(() => {
 
 .library-view.sidebar-hidden {
   grid-template-columns: 0px 1fr;
+}
+
+.main-content-wrapper {
+  position: relative;
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
 }
 
 aside {

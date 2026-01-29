@@ -1,6 +1,6 @@
 <template>
   <div class="library-top-bar" data-tauri-drag-region>
-    <button @click="toggleSidebar" class="toggle-button" title="Toggle Sidebar" data-tauri-drag-region="false">
+    <button @click="toggleSidebar" class="toggle-button" :title="t('library.toggleSidebar')" data-tauri-drag-region="false">
       <span>&#x2194;</span>
     </button>
     
@@ -10,7 +10,7 @@
         <span class="search-icon">&#128269;</span>
         <input 
           v-model="libraryStore.ui.searchQuery" 
-          placeholder="Search files..." 
+          :placeholder="t('library.searchPlaceholder')" 
           class="search-input"
         />
       </div>
@@ -23,11 +23,11 @@
           max="2" 
           step="0.1"
           class="scale-slider"
-          title="Card Size"
+          :title="t('library.cardSize')"
         />
       </div>
 
-      <button class="add-btn" @click="triggerAddFile" title="Add Files">
+      <button class="add-btn" @click="triggerAddFile" :title="t('library.addFiles')">
         <span>+</span>
       </button>
     </div>
@@ -37,8 +37,8 @@
     <!-- Right Toolbar (View & Filter) -->
     <div class="toolbar-section right" data-tauri-drag-region="false">
       <select v-model="libraryStore.ui.isGridView" class="view-selector">
-        <option :value="true">Card View</option>
-        <option :value="false">List View</option>
+        <option :value="true">{{ t('library.cardView') }}</option>
+        <option :value="false">{{ t('library.listView') }}</option>
       </select>
       
       <button 
@@ -55,9 +55,12 @@
 </template>
 
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n';
 import WindowControls from '../WindowControls.vue';
 import { libraryStore, actions } from '../../stores/library';
 import { open } from '@tauri-apps/plugin-dialog';
+
+const { t } = useI18n();
 
 function toggleSidebar() {
   window.dispatchEvent(new CustomEvent('toggle-sidebar'));

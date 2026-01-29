@@ -5,7 +5,7 @@
       <router-link 
         to="/library" 
         class="icon-button" 
-        title="Resource Library" 
+        :title="t('shortcutBar.resourceLibrary')" 
         @click="switchToLibraryMode"
         :class="{ active: libraryStore.ui.viewMode === 'library' && route.path === '/library' }"
       >
@@ -14,7 +14,7 @@
       <router-link 
         to="/library" 
         class="icon-button" 
-        title="Tags View" 
+        :title="t('shortcutBar.tagsView')" 
         @click="switchToTagMode"
         :class="{ active: libraryStore.ui.viewMode === 'tag' && route.path === '/library' }"
       >
@@ -26,13 +26,13 @@
       <button 
         @click="$emit('toggle-dark-mode')" 
         class="icon-button" 
-        :title="isDarkMode ? 'Light Mode' : 'Dark Mode'"
+        :title="isDarkMode ? t('shortcutBar.lightMode') : t('shortcutBar.darkMode')"
       >
         <span v-if="isDarkMode">&#x2600;</span>
         <span v-else>&#x263E;</span>
       </button>
       
-      <router-link to="/settings" class="icon-button" title="Settings">
+      <router-link to="/settings" class="icon-button" :title="t('shortcutBar.settings')">
         <span>&#x2699;</span>
       </router-link>
     </div>
@@ -41,8 +41,10 @@
 
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
+import { useI18n } from 'vue-i18n';
 import { libraryStore, actions } from '../stores/library';
 
+const { t } = useI18n();
 defineProps<{ isDarkMode: boolean }>();
 defineEmits(['toggle-dark-mode']);
 

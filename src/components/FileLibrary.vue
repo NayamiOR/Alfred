@@ -1,15 +1,8 @@
 <template>
     <div 
       class="file-library" 
-      @dragover.prevent="onDragOver"
-      @dragleave.prevent="isDragging = false"
     >
-      <!-- Drag Overlay -->
-    <div v-if="isDragging" class="drag-overlay">
-      <div class="drag-message">Drop files here to add</div>
-    </div>
-
-    <!-- Filter Panel Overlay -->
+      <!-- Filter Panel Overlay -->
     <div v-if="libraryStore.ui.showFilterPanel" class="filter-backdrop" @click="libraryStore.ui.showFilterPanel = false"></div>
 
     <transition name="slide-fade">
@@ -37,12 +30,12 @@
       ></div>
 
       <div v-if="libraryStore.libraries.length === 0" class="empty-state">
-        No libraries created.<br>
-        Create a library in the sidebar to get started.
+        {{ t('library.emptyNoLibraries') }}<br>
+        {{ t('library.emptyNoLibrariesDesc') }}
       </div>
       <div v-else-if="filteredFiles.length === 0" class="empty-state">
-        No files in this library. <br>
-        Drag files here or click + to add.
+        {{ t('library.emptyNoFiles') }} <br>
+        {{ t('library.emptyNoFilesDesc') }}
       </div>
 
       <div
@@ -52,10 +45,6 @@
         @click.stop="selectFile(file, index, $event)"
         @dblclick.stop="openFile(file)"
         @contextmenu.prevent.stop="showContextMenu($event, file)"
-        @keydown.space.prevent="openPreview(file)"
-        @keydown.delete.prevent="deleteSelectedFiles"
-        tabindex="0"
-        @keydown.ctrl.a.prevent="selectAll"
         ref="fileItemRefs"
       >
         <div :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
@@ -111,7 +100,7 @@
     <!-- Tag Input Modal -->
     <div v-if="showTagInput" class="modal-backdrop" @click="showTagInput = false">
       <div class="modal" @click.stop>
-        <h3>{{ targetFilesForTags.length > 1 ? `Edit Tags (${targetFilesForTags.length} items)` : 'Edit Tags' }}</h3>
+        <h3>{{ targetFilesForTags.length > 1 ? t('library.editTagsMulti', { n: targetFilesForTags.length }) : t('library.editTags') }}</h3>
         <div class="current-tags">
           <span v-for="tag in displayedTags" :key="tag" class="tag-chip">
             {{ tag }}
@@ -121,12 +110,12 @@
         <input 
           v-model="newTagValue" 
           @keydown.enter="addTag"
-          placeholder="Type tag and press Enter"
+          :placeholder="t('library.tagInputPlaceholder')"
           class="tag-input"
           autofocus
         />
         <div class="modal-actions">
-          <button @click="showTagInput = false" class="close-btn">Done</button>
+          <button @click="showTagInput = false" class="close-btn">{{ t('library.done') }}</button>
         </div>
       </div>
     </div>
@@ -135,16 +124,17 @@
 
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue';
+import { useI18n } from 'vue-i18n';
 import { libraryStore, currentFiles, actions, FileItem } from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
 import FilterPanel from './FilterPanel.vue';
 import PreviewModal from './PreviewModal.vue';
-import { getCurrentWindow } from '@tauri-apps/api/window';
 import { convertFileSrc } from '@tauri-apps/api/core';
+
+const { t } = useI18n();
 
 // Note: Local UI state has been moved to libraryStore.ui
 
-const isDragging = ref(false);
 const selectedFileIds = ref<Set<string>>(new Set());
 const lastSelectedId = ref<string | null>(null);
 const failedImageIds = ref<Set<string>>(new Set());
@@ -435,27 +425,36 @@ function deleteSelectedFiles() {
   }
 }
 
-// Drag & Drop
-let unlistenDrop: (() => void) | null = null;
+function handleGlobalKeyDown(e: KeyboardEvent) {
+  // Don't trigger if user is typing in an input or textarea
+  const target = e.target as HTMLElement;
+  if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
-onMounted(async () => {
-  const appWindow = getCurrentWindow();
-  unlistenDrop = await appWindow.listen('tauri://drag-drop', (event) => {
-    const payload = event.payload as { paths: string[], position: { x: number, y: number } };
-    if (payload.paths && payload.paths.length > 0) {
-      actions.addFiles(payload.paths);
-      isDragging.value = false;
+  if (e.key === 'Delete' || (e.metaKey && e.key === 'Backspace')) {
+    e.preventDefault();
+    deleteSelectedFiles();
+  } else if (e.key === ' ' && !e.repeat) {
+    // Space for preview
+    if (selectedFileIds.value.size > 0) {
+      e.preventDefault();
+      const targetId = lastSelectedId.value || Array.from(selectedFileIds.value)[0];
+      const file = filteredFiles.value.find(f => f.id === targetId);
+      if (file) openPreview(file);
     }
-  });
+  } else if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
+    e.preventDefault();
+    selectAll();
+  }
+}
+
+// Drag & Drop
+onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalKeyDown);
 });
 
 onUnmounted(() => {
-  if (unlistenDrop) unlistenDrop();
+  window.removeEventListener('keydown', handleGlobalKeyDown);
 });
-
-function onDragOver(_: DragEvent) {
-  isDragging.value = true;
-}
 
 // Context Menu
 const contextMenu = reactive({
@@ -480,18 +479,18 @@ function showContextMenu(e: MouseEvent, file: FileItem) {
 
   // Edit Tags (Always available)
   contextMenu.items.push({ 
-    label: count > 1 ? `Edit Tags (${count} items)...` : 'Edit Tags...', 
+    label: count > 1 ? t('library.contextEditTagsMulti', { n: count }) : t('library.contextEditTags'), 
     action: 'tags' 
   });
 
   if (count > 1) {
-    contextMenu.items.push({ label: `Delete ${count} items`, action: 'delete' });
+    contextMenu.items.push({ label: t('library.deleteMulti', { n: count }), action: 'delete' });
   } else {
     contextMenu.items.push(
-      { label: 'Open', action: 'open' },
-      { label: 'Open File Location', action: 'reveal' },
-      { label: 'Copy File', action: 'copy' },
-      { label: 'Delete', action: 'delete' }
+      { label: t('library.open'), action: 'open' },
+      { label: t('library.openFileLocation'), action: 'reveal' },
+      { label: t('library.copyFile'), action: 'copy' },
+      { label: t('library.delete'), action: 'delete' }
     );
   }
   
@@ -589,36 +588,19 @@ function openPreview(file: FileItem) {
   outline: none; 
 }
 
-.drag-overlay {
-  position: absolute;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.05);
-  border: 2px dashed var(--text-secondary);
-  z-index: 50;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  pointer-events: none;
-}
-
-.drag-message {
-  background: var(--bg-primary);
-  padding: 20px 40px;
-  border-radius: 8px;
-  font-weight: bold;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.1);
-}
-
 .file-container {
   flex: 1;
   overflow-y: auto;
   padding: 20px;
   min-height: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .empty-state {
-  height: 100%;
+  flex: 1;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   text-align: center;
@@ -627,11 +609,10 @@ function openPreview(file: FileItem) {
   line-height: 1.6;
   border: 2px dashed var(--border-color);
   border-radius: 12px;
-  margin: 20px;
 }
 
 .file-container.grid-view {
-  display: flex;
+  flex-direction: row;
   flex-wrap: wrap;
   gap: 20px;
   align-content: flex-start;
