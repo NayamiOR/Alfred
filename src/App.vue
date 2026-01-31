@@ -1,10 +1,18 @@
 <template>
-  <div class="app-layout" :class="{ 'dark-mode': isDarkMode }">
+  <div 
+    class="app-layout" 
+    :class="{ 'dark-mode': isDarkMode }"
+    @dragenter.prevent="handleDragEnter"
+    @dragover.prevent="handleDragOver"
+    @dragleave.prevent="handleDragLeave"
+    @drop.prevent="handleDrop"
+  >
     <TopBar :current-route="($route.name as string)" />
     <ShortcutBar @toggle-dark-mode="toggleDarkMode" :is-dark-mode="isDarkMode" />
     <main class="content-area">
       <router-view />
     </main>
+    <NotificationContainer />
   </div>
 </template>
 
@@ -16,16 +24,15 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { actions, libraryStore } from './stores/library';
 import TopBar from "./components/TopBar.vue";
 import ShortcutBar from "./components/ShortcutBar.vue";
+import NotificationContainer from "./components/NotificationContainer.vue";
 
 const isDarkMode = ref(false);
 const { locale, t } = useI18n();
 const route = useRoute();
 
-// canDrop is only true if we are in /library AND viewMode is 'library'
+// canDrop is true if we are in the library view (root or /library)
 const canDrop = computed(() => {
-  const isLibraryPath = route.path === '/library' || route.path === '/';
-  const isLibraryMode = libraryStore.ui.viewMode === 'library';
-  return isLibraryPath && isLibraryMode;
+  return route.path === '/library' || route.path === '/';
 });
 
 const dragMessage = computed(() => canDrop.value ? t('drag.accept') : t('drag.reject'));
@@ -36,9 +43,44 @@ watch([() => canDrop.value, () => dragMessage.value], () => {
   libraryStore.ui.dragState.message = dragMessage.value;
 }, { immediate: true });
 
+// We keep native listeners ONLY for UI overlay feedback (dragCounter)
+let dragCounter = 0;
+
+function handleDragEnter(e: DragEvent) {
+  if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+    dragCounter++;
+    if (dragCounter === 1) {
+      libraryStore.ui.dragState.isDragging = true;
+    }
+  }
+}
+
+function handleDragOver(e: DragEvent) {
+  // Prevent default to allow drop (though we handle actual data via Tauri event)
+  if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+    e.dataTransfer.dropEffect = 'copy';
+  }
+}
+
+function handleDragLeave(e: DragEvent) {
+  if (e.dataTransfer && e.dataTransfer.types.includes('Files')) {
+    dragCounter--;
+    if (dragCounter <= 0) {
+      dragCounter = 0;
+      libraryStore.ui.dragState.isDragging = false;
+    }
+  }
+}
+
+function handleDrop(_e: DragEvent) {
+  // Reset UI state
+  dragCounter = 0;
+  libraryStore.ui.dragState.isDragging = false;
+  // We do NOT process files here because path is undefined in WebView
+}
+
+let processingFiles = new Set<string>();
 let unlistenDrop: (() => void) | null = null;
-let unlistenDragEnter: (() => void) | null = null;
-let unlistenDragLeave: (() => void) | null = null;
 
 onMounted(async () => {
   const savedMode = localStorage.getItem('isDarkMode');
@@ -51,31 +93,34 @@ onMounted(async () => {
     locale.value = savedLocale;
   }
 
+  // Listen for the custom Tauri event that carries the file paths
   const appWindow = getCurrentWindow();
-  
-  unlistenDragEnter = await appWindow.listen('tauri://drag-enter', () => {
-    libraryStore.ui.dragState.isDragging = true;
-  });
-
-  unlistenDragLeave = await appWindow.listen('tauri://drag-leave', () => {
-    libraryStore.ui.dragState.isDragging = false;
-  });
-
   unlistenDrop = await appWindow.listen('tauri://drag-drop', (event) => {
+    // Reset UI state just in case
+    dragCounter = 0;
     libraryStore.ui.dragState.isDragging = false;
+
     if (canDrop.value) {
       const payload = event.payload as { paths: string[] };
-      if (payload.paths && payload.paths.length > 0) {
-        actions.addFiles(payload.paths);
-      }
+        if (payload.paths && payload.paths.length > 0) {
+          const newPaths = payload.paths.filter(path => !processingFiles.has(path));
+          if (newPaths.length > 0) {
+            newPaths.forEach(path => processingFiles.add(path));
+
+            actions.addFiles(newPaths).then(() => {
+              setTimeout(() => {
+                newPaths.forEach(path => processingFiles.delete(path));
+              }, 1000);
+            });
+          }
+        }
     }
   });
 });
 
 onUnmounted(() => {
+  processingFiles.clear();
   if (unlistenDrop) unlistenDrop();
-  if (unlistenDragEnter) unlistenDragEnter();
-  if (unlistenDragLeave) unlistenDragLeave();
 });
 
 function toggleDarkMode() {
@@ -124,16 +169,6 @@ body,
   user-select: none;
   -webkit-user-select: none;
 }
-
-img {
-  -webkit-user-drag: none;
-}
-
-input, textarea {
-  user-select: text;
-  -webkit-user-select: text;
-}
-
 
 img {
   -webkit-user-drag: none;

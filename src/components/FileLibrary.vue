@@ -29,24 +29,23 @@
         :style="selectionRectStyle"
       ></div>
 
-      <div v-if="libraryStore.libraries.length === 0" class="empty-state">
-        {{ t('library.emptyNoLibraries') }}<br>
-        {{ t('library.emptyNoLibrariesDesc') }}
-      </div>
-      <div v-else-if="filteredFiles.length === 0" class="empty-state">
+      <div v-if="filteredFiles.length === 0" class="empty-state">
         {{ t('library.emptyNoFiles') }} <br>
         {{ t('library.emptyNoFilesDesc') }}
       </div>
 
-      <div
-        v-for="(file, index) in filteredFiles"
-        :key="file.id"
-        :class="['file-item', { 'grid-item': libraryStore.ui.isGridView, 'list-item': !libraryStore.ui.isGridView, 'selected': selectedFileIds.has(file.id) }]"
-        @click.stop="selectFile(file, index, $event)"
-        @dblclick.stop="openFile(file)"
-        @contextmenu.prevent.stop="showContextMenu($event, file)"
-        ref="fileItemRefs"
-      >
+        <div
+          v-for="(file, index) in filteredFiles"
+          :key="file.id"
+          :class="['file-item', { 'grid-item': libraryStore.ui.isGridView, 'list-item': !libraryStore.ui.isGridView, 'selected': selectedFileIds.has(file.id) }]"
+          @click.stop="selectFile(file, index, $event)"
+          @dblclick.stop="openFile(file)"
+          @contextmenu.prevent.stop="showContextMenu($event, file)"
+          @dragover.prevent="onDragOver"
+          @drop.stop="onDropTagToFile($event, file)"
+          @mouseup.stop="onMouseUp($event, file)"
+          ref="fileItemRefs"
+        >
         <div :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
           <div v-if="file.extension === 'folder'" class="folder-icon">
             <v-icon name="fc-folder" :scale="libraryStore.ui.isGridView ? 3.5 : 1.2" />
@@ -67,16 +66,30 @@
           </div>
           
           <!-- Tag Badges Overlay -->
-          <div v-if="file.tags.length > 0 && libraryStore.ui.isGridView" class="file-tags">
-            <span v-for="tag in file.tags.slice(0, 3)" :key="tag" class="tag-badge">{{ tag }}</span>
-            <span v-if="file.tags.length > 3" class="tag-badge">+{{ file.tags.length - 3 }}</span>
+          <div v-if="file.tag_ids.length > 0 && libraryStore.ui.isGridView" class="file-tags">
+            <span 
+              v-for="tagId in file.tag_ids.slice(0, 3)" 
+              :key="tagId" 
+              class="tag-badge"
+              :style="{ backgroundColor: getTagColor(tagId) }"
+            >
+              {{ getTagName(tagId) }}
+            </span>
+            <span v-if="file.tag_ids.length > 3" class="tag-badge">+{{ file.tag_ids.length - 3 }}</span>
           </div>
         </div>
         <div class="file-info-row">
           <div class="file-name" :title="file.name">{{ file.name }}</div>
           <!-- List View Tags -->
-          <div v-if="!libraryStore.ui.isGridView && file.tags.length > 0" class="list-tags">
-            <span v-for="tag in file.tags" :key="tag" class="tag-badge-small">{{ tag }}</span>
+          <div v-if="!libraryStore.ui.isGridView && file.tag_ids.length > 0" class="list-tags">
+            <span 
+              v-for="tagId in file.tag_ids" 
+              :key="tagId" 
+              class="tag-badge-small"
+              :style="{ backgroundColor: getTagColor(tagId), borderColor: getTagColor(tagId) ? 'transparent' : 'var(--border-color)', color: getTagColor(tagId) ? '#fff' : 'var(--text-secondary)' }"
+            >
+              {{ getTagName(tagId) }}
+            </span>
           </div>
         </div>
       </div>
@@ -107,9 +120,9 @@
       <div class="modal" @click.stop>
         <h3>{{ targetFilesForTags.length > 1 ? t('library.editTagsMulti', { n: targetFilesForTags.length }) : t('library.editTags') }}</h3>
         <div class="current-tags">
-          <span v-for="tag in displayedTags" :key="tag" class="tag-chip">
-            {{ tag }}
-            <button @click="removeTag(tag)" class="remove-tag">×</button>
+          <span v-for="tagId in displayedTags" :key="tagId" class="tag-chip">
+            {{ getTagName(tagId) }}
+            <button @click="removeTag(tagId)" class="remove-tag">×</button>
           </span>
         </div>
         <input 
@@ -130,7 +143,7 @@
 <script setup lang="ts">
 import { ref, computed, reactive, onMounted, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { libraryStore, currentFiles, actions, FileItem } from '../stores/library';
+import { libraryStore, currentFiles, actions, getTagName, FileItem } from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
 import FilterPanel from './FilterPanel.vue';
 import PreviewModal from './PreviewModal.vue';
@@ -138,7 +151,12 @@ import { convertFileSrc } from '@tauri-apps/api/core';
 
 const { t } = useI18n();
 
-// Note: Local UI state has been moved to libraryStore.ui
+function getTagColor(tagId: string) {
+  const tag = libraryStore.tags.find(t => t.id === tagId);
+  if (!tag || !tag.group_id) return undefined; 
+  const group = libraryStore.groups.find(g => g.id === tag.group_id);
+  return group?.color || undefined;
+}
 
 const selectedFileIds = ref<Set<string>>(new Set());
 const lastSelectedId = ref<string | null>(null);
@@ -158,7 +176,7 @@ const isSelecting = ref(false);
 const selectionStart = ref({ x: 0, y: 0 });
 const selectionCurrent = ref({ x: 0, y: 0 });
 const fileContainerRef = ref<HTMLElement | null>(null);
-const fileItemRefs = ref<HTMLElement[]>([]); // Will be auto-populated by v-for ref
+const fileItemRefs = ref<HTMLElement[]>([]);
 
 const selectionRectStyle = computed(() => {
   const left = Math.min(selectionStart.value.x, selectionCurrent.value.x);
@@ -174,21 +192,17 @@ const selectionRectStyle = computed(() => {
 });
 
 function startSelection(e: MouseEvent) {
-  // Ignore if clicking on a file item or scrollbar
   const target = e.target as HTMLElement;
   if (target.closest('.file-item') || target === fileContainerRef.value && e.offsetX > target.clientWidth) return;
   
-  // Also ignore right click
   if (e.button !== 0) return;
 
-  // Clear selection immediately if not dragging or adding to selection
   if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
     clearSelection();
   }
 
-  isSelecting.value = false; // Wait for drag threshold
+  isSelecting.value = false;
   
-  // Calculate relative position within container
   const containerRect = fileContainerRef.value!.getBoundingClientRect();
   const scrollTop = fileContainerRef.value!.scrollTop;
   const scrollLeft = fileContainerRef.value!.scrollLeft;
@@ -203,7 +217,6 @@ function startSelection(e: MouseEvent) {
   window.addEventListener('mouseup', endSelection);
 }
 
-// Auto-scroll logic
 let scrollInterval: number | null = null;
 const DRAG_THRESHOLD = 5;
 
@@ -220,7 +233,6 @@ function onSelectionMove(e: MouseEvent) {
 
   selectionCurrent.value = { x: currentX, y: currentY };
 
-  // Check drag threshold
   if (!isSelecting.value) {
     const dx = currentX - selectionStart.value.x;
     const dy = currentY - selectionStart.value.y;
@@ -233,8 +245,7 @@ function onSelectionMove(e: MouseEvent) {
 
   updateSelection();
 
-  // Auto-scroll
-  const edgeThreshold = 50; // pixels from edge to trigger scroll
+  const edgeThreshold = 50;
   const scrollSpeed = 10;
   
   if (scrollInterval) clearInterval(scrollInterval);
@@ -251,7 +262,6 @@ function onSelectionMove(e: MouseEvent) {
   if (scrollY !== 0) {
     scrollInterval = window.setInterval(() => {
       container.scrollTop += scrollY;
-      // Update selection current Y to account for scrolling
       selectionCurrent.value.y += scrollY;
       updateSelection();
     }, 16);
@@ -274,13 +284,11 @@ function updateSelection() {
   items.forEach((item, index) => {
     const itemRect = item.getBoundingClientRect();
     
-    // Convert item rect to relative container coordinates
     const itemLeft = itemRect.left - containerRect.left + scrollLeft;
     const itemTop = itemRect.top - containerRect.top + scrollTop;
     const itemRight = itemLeft + itemRect.width;
     const itemBottom = itemTop + itemRect.height;
 
-    // Check intersection
     const isIntersecting = !(rectLeft > itemRight || 
                              rectRight < itemLeft || 
                              rectTop > itemBottom || 
@@ -327,26 +335,21 @@ const filteredFiles = computed(() => {
     );
   }
 
-  // 3. Filter by Tag View Mode (Libraries & Tags)
-  if (libraryStore.ui.viewMode === 'tag') {
-    const { libraries, tags } = libraryStore.ui.tagViewFilters;
-    
-    // Filter by Selected Libraries
-    if (libraries.length > 0) {
-      result = result.filter(file => libraries.includes(file.library_id));
-    }
+  // 3. Filter by Tags (IDs)
+  const { tags } = libraryStore.ui.tagViewFilters;
+  if (tags.length > 0) {
+    const showUntagged = tags.includes('_untagged_');
+    const selectedTagIds = tags.filter(t => t !== '_untagged_');
 
-    // Filter by Selected Tags
-    if (tags.length > 0) {
-      const showUntagged = tags.includes('_untagged_');
-      const standardTags = tags.filter(t => t !== '_untagged_');
-
-      result = result.filter(file => {
-        const matchesStandard = standardTags.length > 0 && standardTags.some(tag => file.tags.includes(tag));
-        const matchesUntagged = showUntagged && file.tags.length === 0;
-        return matchesStandard || matchesUntagged;
-      });
-    }
+    result = result.filter(file => {
+      // Check if file has any of the selected tags directly
+      const matchesStandard = selectedTagIds.length > 0 && selectedTagIds.some(id => file.tag_ids.includes(id));
+      // Or check if file has any CHILD tag of selected tags (hierarchical filtering) - Optional?
+      // For now, strict match to selected ID.
+      
+      const matchesUntagged = showUntagged && file.tag_ids.length === 0;
+      return matchesStandard || matchesUntagged;
+    });
   }
 
   // 4. Sort
@@ -389,11 +392,9 @@ function resetFilters() {
 // Selection Logic
 function selectFile(file: FileItem, index: number, event: MouseEvent) {
   const id = file.id;
-  // Ensure element focus for keyboard events
   (event.currentTarget as HTMLElement).focus();
 
   if (event.ctrlKey || event.metaKey) {
-    // Toggle
     if (selectedFileIds.value.has(id)) {
       selectedFileIds.value.delete(id);
     } else {
@@ -401,7 +402,6 @@ function selectFile(file: FileItem, index: number, event: MouseEvent) {
       lastSelectedId.value = id;
     }
   } else if (event.shiftKey && lastSelectedId.value) {
-    // Range select
     const lastIndex = filteredFiles.value.findIndex(f => f.id === lastSelectedId.value);
     if (lastIndex !== -1) {
       const start = Math.min(index, lastIndex);
@@ -412,7 +412,6 @@ function selectFile(file: FileItem, index: number, event: MouseEvent) {
       }
     }
   } else {
-    // Single select
     selectedFileIds.value.clear();
     selectedFileIds.value.add(id);
     lastSelectedId.value = id;
@@ -436,7 +435,6 @@ function deleteSelectedFiles() {
 }
 
 function handleGlobalKeyDown(e: KeyboardEvent) {
-  // Don't trigger if user is typing in an input or textarea
   const target = e.target as HTMLElement;
   if (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable) return;
 
@@ -444,7 +442,6 @@ function handleGlobalKeyDown(e: KeyboardEvent) {
     e.preventDefault();
     deleteSelectedFiles();
   } else if (e.key === ' ' && !e.repeat) {
-    // Space for preview
     if (selectedFileIds.value.size > 0) {
       e.preventDefault();
       const targetId = lastSelectedId.value || Array.from(selectedFileIds.value)[0];
@@ -457,7 +454,6 @@ function handleGlobalKeyDown(e: KeyboardEvent) {
   }
 }
 
-// Drag & Drop
 onMounted(async () => {
   window.addEventListener('keydown', handleGlobalKeyDown);
 });
@@ -487,7 +483,6 @@ function showContextMenu(e: MouseEvent, file: FileItem) {
   const count = selectedFileIds.value.size;
   contextMenu.items = [];
 
-  // Edit Tags (Always available)
   contextMenu.items.push({ 
     label: count > 1 ? t('library.contextEditTagsMulti', { n: count }) : t('library.contextEditTags'), 
     action: 'tags' 
@@ -536,10 +531,8 @@ const newTagValue = ref('');
 
 function openTagInput(file: FileItem) {
   if (selectedFileIds.value.size > 0 && selectedFileIds.value.has(file.id)) {
-    // Bulk edit
     targetFilesForTags.value = libraryStore.files.filter(f => selectedFileIds.value.has(f.id));
   } else {
-    // Single edit
     targetFilesForTags.value = [file];
   }
   showTagInput.value = true;
@@ -547,27 +540,26 @@ function openTagInput(file: FileItem) {
 }
 
 const displayedTags = computed(() => {
-  const allTags = new Set<string>();
+  const allTagIds = new Set<string>();
   targetFilesForTags.value.forEach(file => {
-    file.tags.forEach(tag => allTags.add(tag));
+    file.tag_ids.forEach(id => allTagIds.add(id));
   });
-  return Array.from(allTags).sort();
+  return Array.from(allTagIds); // Returns IDs
 });
 
-function addTag() {
-  const tag = newTagValue.value.trim();
-  if (tag) {
-    targetFilesForTags.value.forEach(file => {
-      actions.addTag(file.id, tag);
-    });
+async function addTag() {
+  const tagName = newTagValue.value.trim();
+  if (tagName) {
+    const fileIds = targetFilesForTags.value.map(f => f.id);
+    await actions.attachTagByName(fileIds, tagName);
     newTagValue.value = '';
   }
 }
 
-function removeTag(tag: string) {
+function removeTag(tagId: string) {
   targetFilesForTags.value.forEach(file => {
-    if (file.tags.includes(tag)) {
-      actions.removeTag(file.id, tag);
+    if (file.tag_ids.includes(tagId)) {
+      actions.detachTag(file.id, tagId);
     }
   });
 }
@@ -585,6 +577,37 @@ function openFile(file: FileItem | null) {
 function openPreview(file: FileItem) {
   preview.file = file;
   preview.visible = true;
+}
+
+function onDragOver(e: DragEvent) {
+  if (e.dataTransfer) {
+    e.dataTransfer.dropEffect = 'copy';
+  }
+}
+
+function onMouseUp(_e: MouseEvent, file: FileItem) {
+  const tagId = (window as any).__draggingTagId;
+  if (tagId) {
+    const tag = libraryStore.tags.find(t => t.id === tagId);
+    if (tag && !file.tag_ids.includes(tagId)) {
+      actions.attachTag(file.id, tagId);
+    }
+  }
+}
+
+async function onDropTagToFile(e: DragEvent, file: FileItem) {
+  // Check for our custom tag drag
+  const tagId = (window as any).__draggingTagId || e.dataTransfer?.getData('text/plain');
+  if (!tagId) return;
+
+  // Verify tag exists
+  const tag = libraryStore.tags.find(t => t.id === tagId);
+  if (tag) {
+    // Check if file already has this tag
+    if (!file.tag_ids.includes(tagId)) {
+      await actions.attachTag(file.id, tagId);
+    }
+  }
 }
 </script>
 
@@ -847,6 +870,8 @@ function openPreview(file: FileItem) {
 .modal-actions {
   display: flex;
   justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
 }
 
 .close-btn {

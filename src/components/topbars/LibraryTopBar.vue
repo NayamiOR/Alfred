@@ -19,7 +19,7 @@
         <input 
           type="range" 
           v-model.number="libraryStore.ui.cardScale" 
-          min="0.5" 
+          min="0.4"
           max="2" 
           step="0.1"
           class="scale-slider"
@@ -57,15 +57,12 @@
         <v-icon name="co-hamburger-menu" />
       </button>
     </div>
-
-    <WindowControls />
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed } from 'vue';
 import { useI18n } from 'vue-i18n';
-import WindowControls from '../WindowControls.vue';
 import ContextMenu from '../ContextMenu.vue';
 import { libraryStore, actions } from '../../stores/library';
 import { open } from '@tauri-apps/plugin-dialog';

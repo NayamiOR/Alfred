@@ -1,6 +1,9 @@
 <template>
   <header class="top-bar" data-tauri-drag-region>
-    <component :is="topBarComponent" />
+    <div class="top-bar-content">
+      <component :is="topBarComponent" />
+    </div>
+    <WindowControls />
   </header>
 </template>
 
@@ -8,6 +11,7 @@
 import { computed } from 'vue';
 import LibraryTopBar from './topbars/LibraryTopBar.vue';
 import SettingsTopBar from './topbars/SettingsTopBar.vue';
+import WindowControls from './WindowControls.vue';
 
 const props = defineProps<{ currentRoute: string }>();
 
@@ -27,5 +31,15 @@ const topBarComponent = computed(() => {
   display: flex;
   align-items: center;
   height: 100%;
+  padding-right: 16px;
+}
+
+.top-bar-content {
+  flex: 1;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  margin-right: 12px;
 }
 </style>

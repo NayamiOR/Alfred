@@ -12,32 +12,32 @@ export default {
     }
   },
   sidebar: {
-    libraries: 'Libraries',
     filters: 'Filters',
     tags: 'Tags',
     untagged: 'Untagged',
-    noTags: 'No custom tags yet.',
-    selectAll: 'Select All Tags',
-    newLibrary: 'New Library',
+    otherTags: 'Other Tags',
+    searchTags: 'Search tags...',
+    noTags: 'No tags found.',
+    selectAll: 'Select All',
     manageTags: 'Manage Tags',
-    delete: 'Delete',
-    libraryName: 'Library Name'
+    delete: 'Delete'
   },
   tagManage: {
-    title: 'Manage Tags',
+    title: 'Manage Tags & Groups',
     back: 'Back',
-    noTags: 'No tags found. Add tags to files to manage them here.',
+    noTags: 'No tags or groups found. Create one to get started.',
     rename: 'Rename',
     delete: 'Delete',
     renameTitle: 'Rename Tag',
-    newName: 'New tag name',
+    newName: 'New name',
     cancel: 'Cancel',
     save: 'Save',
-    files: 'files'
+    files: 'files',
+    addGroup: 'New Group',
+    addTag: 'New Tag'
   },
   shortcutBar: {
-    resourceLibrary: 'Resource Library',
-    tagsView: 'Tags View',
+    resourceLibrary: 'Files',
     lightMode: 'Light Mode',
     darkMode: 'Dark Mode',
     settings: 'Settings'
@@ -64,9 +64,7 @@ export default {
     listView: 'List View',
     tagInputPlaceholder: 'Type tag and press Enter',
     dragMessage: 'Drop files here to add',
-    emptyNoLibraries: 'No libraries created.',
-    emptyNoLibrariesDesc: 'Create a library in the sidebar to get started.',
-    emptyNoFiles: 'No files in this library.',
+    emptyNoFiles: 'No files found.',
     emptyNoFilesDesc: 'Drag files here or click + to add.',
     editTags: 'Edit Tags',
     editTagsMulti: 'Edit Tags ({n} items)',
@@ -95,12 +93,12 @@ export default {
     none: 'None',
     resetDefaults: 'Reset Defaults'
   },
-    tray: {
+  tray: {
     show: 'Open Alfred',
     quit: 'Quit'
   },
   drag: {
     accept: 'Drop to add files',
-    reject: 'Tags view does not support adding files'
+    reject: 'Cannot drop here'
   }
 };

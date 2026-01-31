@@ -1,64 +1,29 @@
 <template>
   <aside class="sidebar">
-    <div v-if="libraryStore.ui.viewMode === 'library'" class="library-list">
-      <div class="sidebar-header">
-        <h2>{{ t('sidebar.libraries') }}</h2>
-      </div>
-      
-      <div 
-        v-for="lib in libraryStore.libraries" 
-        :key="lib.id"
-        class="library-item"
-        :class="{ active: libraryStore.currentLibraryId === lib.id }"
-        @click="selectLibrary(lib.id)"
-        @contextmenu.prevent="showContextMenu($event, lib)"
-      >
-        <div class="lib-icon">
-          <v-icon v-if="lib.icon === '📁'" name="px-archive" scale="1.1" />
-          <template v-else>{{ lib.icon }}</template>
-        </div>
-        <div class="lib-name">{{ lib.name }}</div>
-        <div class="lib-options" @click.stop="showContextMenu($event, lib)">
-          <v-icon name="co-hamburger-menu" scale="0.8" />
-        </div>
-      </div>
-      
-      <div v-if="isCreating" class="library-item creating">
-        <div class="lib-icon"><v-icon name="px-archive" scale="1.1" /></div>
-        <input 
-          ref="newLibInput"
-          v-model="newLibName" 
-          @keydown.enter="finishCreate" 
-          @keydown.esc="cancelCreate"
-          @blur="cancelCreate"
-          class="new-lib-input"
-          :placeholder="t('sidebar.libraryName')"
-        />
-      </div>
+    <div class="sidebar-header">
+      <h2>{{ t('sidebar.filters') }}</h2>
     </div>
 
-    <div v-else class="library-list">
-      <div class="sidebar-header">
-        <h2>{{ t('sidebar.filters') }}</h2>
-      </div>
+    <!-- Search & Selection Status -->
+    <div class="search-section">
+      <input 
+        v-model="searchQuery" 
+        :placeholder="t('sidebar.searchTags')" 
+        class="search-input"
+      />
+    </div>
 
-      <div class="filter-group">
-        <h3>{{ t('sidebar.libraries') }}</h3>
-        <div class="checkbox-list">
-          <label v-for="lib in libraryStore.libraries" :key="lib.id" class="filter-item">
-            <input 
-              type="checkbox" 
-              :value="lib.id"
-              v-model="libraryStore.ui.tagViewFilters.libraries"
-            >
-            <span>{{ lib.name }}</span>
-          </label>
-        </div>
-      </div>
+    <div v-if="libraryStore.ui.tagViewFilters.tags.length > 0" class="selection-status">
+      <span class="count">{{ libraryStore.ui.tagViewFilters.tags.length }} selected</span>
+      <button @click="clearSelection" class="clear-btn">Clear</button>
+    </div>
 
+    <div class="library-list">
+      
       <div class="filter-group">
-        <h3>{{ t('sidebar.tags') }}</h3>
+        
         <div class="checkbox-list">
+          <!-- Untagged -->
           <label class="filter-item">
             <input 
               type="checkbox" 
@@ -68,44 +33,151 @@
             <span class="untagged-label">{{ t('sidebar.untagged') }}</span>
           </label>
 
-          <div v-if="allTags.length === 0" class="empty-msg">{{ t('sidebar.noTags') }}</div>
+          <div v-if="libraryStore.tags.length === 0" class="empty-msg">{{ t('sidebar.noTags') }}</div>
           
           <template v-else>
-            <label class="filter-item">
-              <input 
-                type="checkbox" 
-                :checked="areAllTagsSelected"
-                @change="toggleAllTags"
-              >
-              <span>{{ t('sidebar.selectAll') }}</span>
-            </label>
+            <!-- Groups -->
+            <div 
+              v-for="group in filteredGroups" 
+              :key="group.id" 
+              class="group-section"
+              :data-group-id="group.id"
+            >
+              <div class="group-header" @click="toggleGroup(group.id)">
+                <span class="arrow">{{ collapsedGroups.has(group.id) ? '▶' : '▼' }}</span>
+                <span class="group-name">{{ group.name }}</span>
+              </div>
+              
+              <div v-show="!collapsedGroups.has(group.id)" class="group-items">
+                <template v-for="tag in getVisibleGroupTags(group.id)" :key="tag.id">
+                  <div 
+                    class="tag-wrapper"
+                    :data-tag-id="tag.id"
+                    @mousedown="onMouseDown(tag, $event)"
+                    @contextmenu.prevent="showContextMenu($event, tag)"
+                  >
+                    <div class="tag-row-container" :class="{ 'dragging': isDraggingTag(tag.id) }">
+                      <span 
+                        class="tag-toggle"
+                        :class="{ 'hidden': !hasChildren(tag.id) }"
+                        @click.stop="toggleTagCollapse(tag.id)"
+                      >
+                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}
+                      </span>
+                      <label class="filter-item">
+                        <input 
+                          type="checkbox" 
+                          :checked="isTagSelected(tag.id)"
+                          @change="toggleTag(tag.id)"
+                        >
+                        <span>{{ tag.name }}</span>
+                      </label>
+                    </div>
+                  </div>
 
-            <label v-for="tag in allTags" :key="tag" class="filter-item">
-              <input 
-                type="checkbox" 
-                :checked="libraryStore.ui.tagViewFilters.tags.includes(tag)"
-                @change="toggleTag(tag)"
-              >
-              <span>{{ tag }}</span>
-            </label>
+                  <!-- Children -->
+                  <div v-show="!collapsedTags.has(tag.id)">
+                    <div 
+                      v-for="child in getVisibleChildTags(tag.id)" 
+                      :key="child.id" 
+                      class="child-tag"
+                      :data-tag-id="child.id"
+                      @mousedown="onMouseDown(child, $event)"
+                      @contextmenu.prevent="showContextMenu($event, child)"
+                    >
+                      <div class="tag-row-container indent" :class="{ 'dragging': isDraggingTag(child.id) }">
+                        <span class="tag-toggle hidden"></span>
+                        <label class="filter-item">
+                          <input 
+                            type="checkbox" 
+                            :checked="isTagSelected(child.id)"
+                            @change="toggleTag(child.id)"
+                          >
+                          <span>{{ child.name }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
+            <!-- Ungrouped Root Tags -->
+            <div 
+              v-if="getVisibleUngroupedTags().length > 0" 
+              class="group-section"
+              data-group-id="ungrouped"
+            >
+               <div class="group-header" @click="toggleGroup('ungrouped')">
+                <span class="arrow">{{ collapsedGroups.has('ungrouped') ? '▶' : '▼' }}</span>
+                <span class="group-name">{{ t('sidebar.otherTags') || 'Other' }}</span>
+              </div>
+
+              <div v-show="!collapsedGroups.has('ungrouped')" class="group-items">
+                <template v-for="tag in getVisibleUngroupedTags()" :key="tag.id">
+                  <div 
+                    class="tag-wrapper"
+                    :data-tag-id="tag.id"
+                    @mousedown="onMouseDown(tag, $event)"
+                    @contextmenu.prevent="showContextMenu($event, tag)"
+                  >
+                    <div class="tag-row-container" :class="{ 'dragging': isDraggingTag(tag.id) }">
+                      <span 
+                        class="tag-toggle"
+                        :class="{ 'hidden': !hasChildren(tag.id) }"
+                        @click.stop="toggleTagCollapse(tag.id)"
+                      >
+                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}
+                      </span>
+                      <label class="filter-item">
+                        <input 
+                          type="checkbox" 
+                          :checked="isTagSelected(tag.id)"
+                          @change="toggleTag(tag.id)"
+                        >
+                        <span>{{ tag.name }}</span>
+                      </label>
+                    </div>
+                  </div>
+                   <!-- Children of ungrouped -->
+                  <div v-show="!collapsedTags.has(tag.id)">
+                    <div 
+                      v-for="child in getVisibleChildTags(tag.id)" 
+                      :key="child.id" 
+                      class="child-tag"
+                      :data-tag-id="child.id"
+                      @mousedown="onMouseDown(child, $event)"
+                      @contextmenu.prevent="showContextMenu($event, child)"
+                    >
+                      <div class="tag-row-container indent" :class="{ 'dragging': isDraggingTag(child.id) }">
+                        <span class="tag-toggle hidden"></span>
+                        <label class="filter-item">
+                          <input 
+                            type="checkbox" 
+                            :checked="isTagSelected(child.id)"
+                            @change="toggleTag(child.id)"
+                          >
+                          <span>{{ child.name }}</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                </template>
+              </div>
+            </div>
+
           </template>
         </div>
       </div>
     </div>
 
     <div class="sidebar-footer">
-      <template v-if="libraryStore.ui.viewMode === 'library'">
-        <button class="add-lib-btn" @click="startCreate">
-          <v-icon name="co-plus" scale="0.8" /> {{ t('sidebar.newLibrary') }}
-        </button>
-      </template>
-      <template v-else>
-        <router-link to="/tags" class="add-lib-btn" :title="t('sidebar.manageTags')">
-          <v-icon name="co-settings" scale="0.8" /> {{ t('sidebar.manageTags') }}
-        </router-link>
-      </template>
+      <router-link to="/tags" class="add-lib-btn" :title="t('sidebar.manageTags')">
+        <v-icon name="co-settings" scale="0.8" /> {{ t('sidebar.manageTags') }}
+      </router-link>
     </div>
 
+    <!-- Context Menu -->
     <ContextMenu 
       :visible="contextMenu.visible" 
       :position="contextMenu.position" 
@@ -117,120 +189,270 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, ref, nextTick, reactive, computed } from 'vue';
+import { ref, computed, onMounted, reactive } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { libraryStore, actions, allTags } from '../stores/library';
+import { libraryStore, actions, Tag } from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
 
 const { t } = useI18n();
-const isCreating = ref(false);
-const newLibName = ref('');
-const newLibInput = ref<HTMLInputElement | null>(null);
 
-// Tag Selection Logic
+// Search & Filtering
+const searchQuery = ref('');
+const collapsedGroups = ref(new Set<string>());
+const collapsedTags = ref(new Set<string>());
+
+function toggleGroup(id: string) {
+  if (collapsedGroups.value.has(id)) {
+    collapsedGroups.value.delete(id);
+  } else {
+    collapsedGroups.value.add(id);
+  }
+}
+
+function toggleTagCollapse(id: string) {
+  if (collapsedTags.value.has(id)) {
+    collapsedTags.value.delete(id);
+  } else {
+    collapsedTags.value.add(id);
+  }
+}
+
+function hasChildren(tagId: string) {
+  return libraryStore.tags.some(t => t.parent_id === tagId);
+}
+
+// Filtered Data
+const filteredGroups = computed(() => {
+  if (!searchQuery.value) return libraryStore.groups;
+  
+  const query = searchQuery.value.toLowerCase();
+  return libraryStore.groups.filter(g => {
+    // Show group if name matches
+    if (g.name.toLowerCase().includes(query)) return true;
+    
+    // OR if any of its tags match
+    const groupTags = libraryStore.tags.filter(t => t.group_id === g.id);
+    return groupTags.some(t => 
+      t.name.toLowerCase().includes(query) || 
+      // check children too
+      libraryStore.tags.some(child => child.parent_id === t.id && child.name.toLowerCase().includes(query))
+    );
+  });
+});
+
+function getVisibleGroupTags(groupId: string) {
+  let tags = libraryStore.tags.filter(t => t.group_id === groupId && !t.parent_id);
+  if (!searchQuery.value) return tags;
+
+  const query = searchQuery.value.toLowerCase();
+  return tags.filter(t => {
+    if (t.name.toLowerCase().includes(query)) return true;
+    // Keep parent visible if child matches
+    const children = libraryStore.tags.filter(c => c.parent_id === t.id);
+    return children.some(c => c.name.toLowerCase().includes(query));
+  });
+}
+
+function getVisibleUngroupedTags() {
+  let tags = libraryStore.tags.filter(t => !t.group_id && !t.parent_id);
+  if (!searchQuery.value) return tags;
+
+  const query = searchQuery.value.toLowerCase();
+  return tags.filter(t => {
+     if (t.name.toLowerCase().includes(query)) return true;
+     const children = libraryStore.tags.filter(c => c.parent_id === t.id);
+     return children.some(c => c.name.toLowerCase().includes(query));
+  });
+}
+
+function getVisibleChildTags(parentId: string) {
+  let tags = libraryStore.tags.filter(t => t.parent_id === parentId);
+  if (!searchQuery.value) return tags;
+  
+  const query = searchQuery.value.toLowerCase();
+  return tags.filter(t => t.name.toLowerCase().includes(query));
+}
+
+// Tag Selection
 const isUntaggedSelected = computed(() => libraryStore.ui.tagViewFilters.tags.includes('_untagged_'));
 
-const areAllTagsSelected = computed(() => {
-  const selected = libraryStore.ui.tagViewFilters.tags;
-  // Check if all tags are present AND untagged is NOT present
-  return allTags.value.length > 0 && 
-         allTags.value.every(t => selected.includes(t)) && 
-         !selected.includes('_untagged_');
-});
+function isTagSelected(id: string) {
+  return libraryStore.ui.tagViewFilters.tags.includes(id);
+}
 
 function toggleUntagged() {
   if (isUntaggedSelected.value) {
-    // Deselect untagged
     libraryStore.ui.tagViewFilters.tags = [];
   } else {
-    // Select untagged, clear everything else
     libraryStore.ui.tagViewFilters.tags = ['_untagged_'];
   }
 }
 
-function toggleAllTags() {
-  if (areAllTagsSelected.value) {
-    // Deselect all
-    libraryStore.ui.tagViewFilters.tags = [];
-  } else {
-    // Select all tags, clear untagged
-    libraryStore.ui.tagViewFilters.tags = [...allTags.value];
-  }
-}
-
-function toggleTag(tag: string) {
+function toggleTag(id: string) {
   const selected = libraryStore.ui.tagViewFilters.tags;
   
-  // If untagged was selected, clear it first
   if (selected.includes('_untagged_')) {
-    libraryStore.ui.tagViewFilters.tags = [tag];
+    libraryStore.ui.tagViewFilters.tags = [id];
     return;
   }
 
-  const index = selected.indexOf(tag);
+  const index = selected.indexOf(id);
   if (index === -1) {
-    selected.push(tag);
+    selected.push(id);
   } else {
     selected.splice(index, 1);
   }
 }
 
-// ... existing script content ...
-// Load libraries on mount if empty
-onMounted(() => {
-  if (libraryStore.libraries.length === 0) {
-    actions.loadLibraries();
+function clearSelection() {
+  libraryStore.ui.tagViewFilters.tags = [];
+}
+
+// Drag and Drop
+const draggingTagId = ref<string | null>(null);
+const draggedTag = ref<Tag | null>(null);
+const dragPreview = ref<HTMLElement | null>(null);
+const isDragging = ref(false);
+const dragOffset = ref({ x: 0, y: 0 });
+
+function isDraggingTag(id: string) {
+  return draggingTagId.value === id;
+}
+
+function onMouseDown(tag: Tag, event: MouseEvent) {
+  if ((event.target as HTMLElement).tagName === 'INPUT') return;
+  if (event.button !== 0 && event.button !== undefined) return;
+
+  event.preventDefault();
+
+  const element = event.currentTarget as HTMLElement;
+  const rect = element.getBoundingClientRect();
+  dragOffset.value = {
+    x: event.clientX - rect.left,
+    y: event.clientY - rect.top
+  };
+
+  draggedTag.value = tag;
+  draggingTagId.value = tag.id;
+  isDragging.value = true;
+
+  // Set tag ID on window for FileLibrary to detect
+  (window as any).__draggingTagId = tag.id;
+
+  createDragPreview(tag, event.clientX, event.clientY, rect.width, rect.height);
+
+  window.addEventListener('mousemove', onMouseMove);
+  window.addEventListener('mouseup', onMouseUp);
+}
+
+function onMouseMove(event: MouseEvent) {
+  if (!isDragging.value || !dragPreview.value) return;
+
+  const x = event.clientX - dragOffset.value.x;
+  const y = event.clientY - dragOffset.value.y;
+
+  dragPreview.value.style.left = x + 'px';
+  dragPreview.value.style.top = y + 'px';
+}
+
+function onMouseUp(event: MouseEvent) {
+  window.removeEventListener('mousemove', onMouseMove);
+  window.removeEventListener('mouseup', onMouseUp);
+
+  if (dragPreview.value) {
+    dragPreview.value.remove();
+    dragPreview.value = null;
   }
-});
 
-function selectLibrary(id: string) {
-  actions.selectLibrary(id);
-}
+  // Clean up global tag ID
+  delete (window as any).__draggingTagId;
 
-function startCreate() {
-  isCreating.value = true;
-  newLibName.value = '';
-  nextTick(() => {
-    newLibInput.value?.focus();
-  });
-}
-
-function finishCreate() {
-  if (newLibName.value.trim()) {
-    actions.createLibrary(newLibName.value.trim());
+  if (isDragging.value) {
+    handleDrop(event.clientX, event.clientY);
   }
-  isCreating.value = false;
+
+  draggedTag.value = null;
+  draggingTagId.value = null;
+  isDragging.value = false;
 }
 
-function cancelCreate() {
-  // Small delay to allow enter key to trigger first if pressed
-  setTimeout(() => {
-    isCreating.value = false;
-  }, 100);
+function createDragPreview(tag: Tag, x: number, y: number, width: number, height: number) {
+  const preview = document.createElement('div');
+  preview.className = 'drag-preview';
+  preview.innerHTML = `<span>${tag.name}</span>`;
+  preview.style.left = (x - dragOffset.value.x) + 'px';
+  preview.style.top = (y - dragOffset.value.y) + 'px';
+  preview.style.width = width + 'px';
+  preview.style.height = height + 'px';
+  preview.style.minWidth = '100px';
+  document.body.appendChild(preview);
+  dragPreview.value = preview;
 }
 
-// Context Menu Logic
+function handleDrop(x: number, y: number) {
+  const targetElement = document.elementFromPoint(x, y);
+  if (!targetElement || !draggedTag.value) return;
+  
+  const groupSection = targetElement.closest('.group-section');
+  const tagWrapper = targetElement.closest('.tag-wrapper, .child-tag');
+  
+  if (tagWrapper) {
+    const tagId = tagWrapper.getAttribute('data-tag-id');
+    if (tagId && tagId !== draggedTag.value.id) {
+      const targetTag = libraryStore.tags.find(t => t.id === tagId);
+      if (targetTag && targetTag.parent_id !== draggedTag.value.id) {
+        actions.moveTag(draggedTag.value.id, targetTag.id, targetTag.group_id);
+      }
+    }
+  } else if (groupSection) {
+    const groupId = groupSection.getAttribute('data-group-id');
+    if (groupId === 'ungrouped') {
+      actions.moveTag(draggedTag.value.id, null, null);
+    } else {
+      actions.moveTag(draggedTag.value.id, null, groupId);
+    }
+  }
+}
+
+// Context Menu
 const contextMenu = reactive({
   visible: false,
   position: { x: 0, y: 0 },
   items: [] as { label: string, action: string }[],
-  targetLib: null as any
+  targetTag: null as Tag | null
 });
 
-function showContextMenu(e: MouseEvent, lib: any) {
-  contextMenu.targetLib = lib;
-  contextMenu.position = { x: e.clientX, y: e.clientY };
-  contextMenu.items = [
-    { label: t('sidebar.delete'), action: 'delete' }
-  ];
+function showContextMenu(e: MouseEvent, tag: Tag) {
   contextMenu.visible = true;
+  contextMenu.position = { x: e.clientX, y: e.clientY };
+  contextMenu.targetTag = tag;
+  contextMenu.items = [
+    { label: t('tagManage.rename'), action: 'rename' },
+    { label: t('library.delete'), action: 'delete' }
+  ];
 }
 
-function handleMenuAction(action: string) {
-  if (action === 'delete' && contextMenu.targetLib) {
-    actions.deleteLibrary(contextMenu.targetLib.id);
+async function handleMenuAction(action: string) {
+  const tag = contextMenu.targetTag;
+  if (!tag) return;
+
+  if (action === 'rename') {
+    const newName = prompt(t('tagManage.renameTitle'), tag.name);
+    if (newName && newName !== tag.name) {
+      await actions.renameTag(tag.id, newName);
+    }
+  } else if (action === 'delete') {
+    if (confirm(t('tagManage.delete') + '?')) {
+      await actions.deleteTag(tag.id);
+    }
   }
 }
+
+onMounted(() => {
+  if (libraryStore.files.length === 0) {
+    actions.loadData();
+  }
+});
 </script>
 
 <style scoped>
@@ -241,10 +463,9 @@ function handleMenuAction(action: string) {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  transition: all 0.3s ease;
+  user-select: none;
 }
 
-/* ... existing styles ... */
 .sidebar-header {
   padding: 20px 16px 10px;
 }
@@ -257,72 +478,42 @@ function handleMenuAction(action: string) {
   letter-spacing: 1px;
 }
 
+.search-section {
+  padding: 0 16px 10px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+}
+
+.selection-status {
+  padding: 0 16px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.clear-btn {
+  background: none;
+  border: none;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-decoration: underline;
+  padding: 0;
+}
+
 .library-list {
   flex: 1;
   overflow-y: auto;
   padding: 8px;
-}
-
-.library-item {
-  display: flex;
-  align-items: center;
-  padding: 8px 12px;
-  margin-bottom: 4px;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: background-color 0.2s;
-  color: var(--text-primary);
-}
-
-.library-item:hover {
-  background-color: var(--hover-color);
-}
-
-.library-item.active {
-  background-color: var(--bg-secondary);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-  font-weight: 500;
-}
-
-.lib-icon {
-  margin-right: 10px;
-  font-size: 16px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 20px;
-  height: 20px;
-}
-
-.lib-name {
-  font-size: 14px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-}
-
-.lib-options {
-  opacity: 0;
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 4px;
-  color: var(--text-secondary);
-  font-weight: bold;
-  font-size: 16px;
-  transition: all 0.2s;
-}
-
-.lib-options:hover {
-  background-color: var(--hover-color);
-  color: var(--text-primary);
-}
-
-.library-item:hover .lib-options {
-  opacity: 1;
 }
 
 .sidebar-footer {
@@ -353,29 +544,10 @@ function handleMenuAction(action: string) {
   background-color: var(--hover-color);
 }
 
-.new-lib-input {
-  background: transparent;
-  border: none;
-  outline: none;
-  font-size: 14px;
-  color: var(--text-primary);
-  width: 100%;
-  border-bottom: 1px solid var(--text-secondary);
-}
-
-/* New Filter Styles */
+/* Filter Styles */
 .filter-group {
   margin-bottom: 24px;
   padding: 0 12px;
-}
-
-.filter-group h3 {
-  font-size: 11px;
-  text-transform: uppercase;
-  color: var(--text-secondary);
-  margin: 0 0 12px 4px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
 }
 
 .checkbox-list {
@@ -384,20 +556,65 @@ function handleMenuAction(action: string) {
   gap: 2px;
 }
 
+.tag-row-container {
+  display: flex;
+  align-items: center;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.tag-row-container:hover {
+  background-color: var(--hover-color);
+}
+
+.tag-row-container.dragging {
+  opacity: 0.5;
+  background-color: var(--hover-color);
+}
+
+.tag-row-container.indent {
+  padding-left: 20px;
+}
+
+.tag-toggle {
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  user-select: none;
+  flex-shrink: 0;
+}
+
+.tag-toggle:hover {
+  color: var(--text-primary);
+}
+
+.tag-toggle.hidden {
+  visibility: hidden;
+}
+
 .filter-item {
   display: flex;
   align-items: center;
-  padding: 6px 10px;
-  border-radius: 6px;
+  padding: 6px 10px 6px 0;
   cursor: pointer;
   font-size: 13px;
   color: var(--text-primary);
-  transition: all 0.2s;
-  user-select: none;
-  overflow: hidden; /* Prevent content from spilling out */
+  overflow: hidden;
+  flex: 1;
 }
 
-.filter-item:hover {
+/* For standalone filter items without row container (e.g. untagged/select all) */
+.filter-item:not(.tag-row-container .filter-item) {
+  padding: 6px 10px;
+  border-radius: 6px;
+}
+
+.filter-item:not(.tag-row-container .filter-item):hover {
   background-color: var(--hover-color);
 }
 
@@ -407,7 +624,7 @@ function handleMenuAction(action: string) {
   cursor: pointer;
   width: 14px;
   height: 14px;
-  flex-shrink: 0; /* Don't squash the checkbox */
+  flex-shrink: 0;
 }
 
 .filter-item span {
@@ -429,4 +646,57 @@ function handleMenuAction(action: string) {
   font-style: italic;
   color: var(--text-secondary);
 }
+
+.group-section {
+  margin-bottom: 8px;
+}
+
+.group-header {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  margin: 8px 0 4px 0;
+  padding: 4px 10px;
+  opacity: 0.8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 4px;
+}
+
+.group-header:hover {
+  background-color: var(--hover-color);
+}
+
+.arrow {
+  font-size: 10px;
+  width: 12px;
+}
+
+.tag-wrapper, .child-tag {
+  /* Wrappers for drag events */
+}
+
+/* Drag Preview Styles */
+.drag-preview {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  padding: 6px 10px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text-primary);
+  opacity: 0.9;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  cursor: grabbing;
+  transform: rotate(2deg);
+  transition: transform 0.1s ease;
+}
+
 </style>

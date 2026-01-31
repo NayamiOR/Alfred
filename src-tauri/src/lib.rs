@@ -2,7 +2,8 @@ mod models;
 
 use chrono::Utc;
 use mime_guess::from_path;
-use models::{AppData, AppState, FileItem, Library};
+use models::{AppData, AppState, FileItem, Tag, TagGroup};
+use serde::Serialize;
 use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
@@ -10,7 +11,7 @@ use std::process::Command;
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
-    Manager, State,
+    Emitter, Manager, State,
 };
 use tauri_plugin_fs::FsExt;
 use uuid::Uuid;
@@ -43,47 +44,24 @@ fn save_to_disk(data: &AppData, file_path: &Path) {
 }
 
 #[tauri::command]
-fn get_libraries(state: State<AppState>) -> Vec<Library> {
+fn get_initial_data(state: State<AppState>) -> AppData {
     let data = state.data.lock().unwrap();
-    data.libraries.clone()
+    data.clone()
+}
+
+#[derive(Serialize)]
+pub struct AddFilesResponse {
+    pub added_files: Vec<FileItem>,
+    pub skipped_duplicates: Vec<String>,
+    pub skipped_unsupported: Vec<String>,
 }
 
 #[tauri::command]
-fn create_library(name: String, state: State<AppState>) -> Library {
+fn add_files(paths: Vec<String>, state: State<AppState>) -> AddFilesResponse {
     let mut data = state.data.lock().unwrap();
-    let lib = Library {
-        id: Uuid::new_v4().to_string(),
-        name,
-        icon: "📁".to_string(),
-        created_at: Utc::now().timestamp_millis(),
-    };
-    data.libraries.push(lib.clone());
-    save_to_disk(&data, &state.file_path);
-    lib
-}
-
-#[tauri::command]
-fn delete_library(id: String, state: State<AppState>) {
-    let mut data = state.data.lock().unwrap();
-    data.libraries.retain(|l| l.id != id);
-    data.files.retain(|f| f.library_id != id);
-    save_to_disk(&data, &state.file_path);
-}
-
-#[tauri::command]
-fn get_files(library_id: String, state: State<AppState>) -> Vec<FileItem> {
-    let data = state.data.lock().unwrap();
-    data.files
-        .iter()
-        .filter(|f| f.library_id == library_id)
-        .cloned()
-        .collect()
-}
-
-#[tauri::command]
-fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> Vec<FileItem> {
-    let mut data = state.data.lock().unwrap();
-    let mut new_files = Vec::new();
+    let mut added_files = Vec::new();
+    let mut skipped_duplicates = Vec::new();
+    let mut skipped_unsupported = Vec::new();
 
     // Whitelists
     let docs = vec![
@@ -103,7 +81,16 @@ fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> 
         .chain(audios)
         .collect();
 
+    // Create a HashSet of existing paths for fast lookup
+    let existing_paths: HashSet<String> = data.files.iter().map(|f| f.path.clone()).collect();
+
     for path_str in paths {
+        // Check for duplicates
+        if existing_paths.contains(&path_str) {
+            skipped_duplicates.push(path_str);
+            continue;
+        }
+
         let path = Path::new(&path_str);
         if !path.exists() {
             continue;
@@ -118,6 +105,7 @@ fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> 
 
         // Filter logic: Allow if it's a directory OR if the extension is in whitelist
         if !is_dir && !allowed_exts.contains(extension.as_str()) {
+            skipped_unsupported.push(path_str);
             continue;
         }
 
@@ -145,20 +133,24 @@ fn add_files(library_id: String, paths: Vec<String>, state: State<AppState>) -> 
 
         let file_item = FileItem {
             id: Uuid::new_v4().to_string(),
-            library_id: library_id.clone(),
             name,
             path: path_str.clone(),
             extension: final_extension,
             size,
             mime_type,
             added_at: Utc::now().timestamp_millis(),
-            tags: Vec::new(),
+            tag_ids: Vec::new(),
         };
-        new_files.push(file_item.clone());
+        added_files.push(file_item.clone());
         data.files.push(file_item);
     }
     save_to_disk(&data, &state.file_path);
-    new_files
+
+    AddFilesResponse {
+        added_files,
+        skipped_duplicates,
+        skipped_unsupported,
+    }
 }
 
 #[tauri::command]
@@ -169,76 +161,161 @@ fn delete_files(ids: Vec<String>, state: State<AppState>) {
     save_to_disk(&data, &state.file_path);
 }
 
-// Deprecated single delete, kept for compatibility if needed, but we should use delete_files
+// --- Tag Group Ops ---
+
 #[tauri::command]
-fn delete_file(id: String, state: State<AppState>) {
+fn create_tag_group(name: String, color: Option<String>, state: State<AppState>) -> TagGroup {
     let mut data = state.data.lock().unwrap();
-    data.files.retain(|f| f.id != id);
+    let group = TagGroup {
+        id: Uuid::new_v4().to_string(),
+        name,
+        color,
+    };
+    data.groups.push(group.clone());
+    save_to_disk(&data, &state.file_path);
+    group
+}
+
+#[tauri::command]
+fn update_tag_group(
+    id: String,
+    name: Option<String>,
+    color: Option<String>,
+    state: State<AppState>,
+) {
+    let mut data = state.data.lock().unwrap();
+    if let Some(group) = data.groups.iter_mut().find(|g| g.id == id) {
+        if let Some(n) = name {
+            group.name = n;
+        }
+        if let Some(c) = color {
+            group.color = Some(c);
+        }
+        save_to_disk(&data, &state.file_path);
+    }
+}
+
+#[tauri::command]
+fn delete_tag_group(id: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    // Ungroup tags
+    for tag in data.tags.iter_mut() {
+        if tag.group_id.as_ref() == Some(&id) {
+            tag.group_id = None;
+        }
+    }
+    // Delete group
+    data.groups.retain(|g| g.id != id);
     save_to_disk(&data, &state.file_path);
 }
 
+// --- Tag Ops ---
+
 #[tauri::command]
-fn add_tag(file_id: String, tag: String, state: State<AppState>) {
+fn create_tag(
+    name: String,
+    parent_id: Option<String>,
+    group_id: Option<String>,
+    state: State<AppState>,
+) -> Result<Tag, String> {
+    let mut data = state.data.lock().unwrap();
+
+    // Check for duplicate tag name (case-insensitive)
+    if data.tags.iter().any(|t| t.name.eq_ignore_ascii_case(&name)) {
+        return Err("Duplicate tag name".to_string());
+    }
+
+    let tag = Tag {
+        id: Uuid::new_v4().to_string(),
+        name,
+        parent_id,
+        group_id,
+    };
+    data.tags.push(tag.clone());
+    save_to_disk(&data, &state.file_path);
+    Ok(tag)
+}
+
+#[tauri::command]
+fn rename_tag(id: String, name: String, state: State<AppState>) -> Result<(), String> {
+    let mut data = state.data.lock().unwrap();
+
+    // Check for duplicates (excluding self)
+    if data
+        .tags
+        .iter()
+        .any(|t| t.id != id && t.name.eq_ignore_ascii_case(&name))
+    {
+        return Err("Duplicate tag name".to_string());
+    }
+
+    if let Some(tag) = data.tags.iter_mut().find(|t| t.id == id) {
+        tag.name = name;
+        save_to_disk(&data, &state.file_path);
+        Ok(())
+    } else {
+        Err("Tag not found".to_string())
+    }
+}
+
+#[tauri::command]
+fn move_tag(
+    id: String,
+    parent_id: Option<String>,
+    group_id: Option<String>,
+    state: State<AppState>,
+) {
+    let mut data = state.data.lock().unwrap();
+    if let Some(tag) = data.tags.iter_mut().find(|t| t.id == id) {
+        tag.parent_id = parent_id;
+        tag.group_id = group_id;
+        save_to_disk(&data, &state.file_path);
+    }
+}
+
+#[tauri::command]
+fn delete_tag(id: String, state: State<AppState>) {
+    let mut data = state.data.lock().unwrap();
+    // Detach from files
+    for file in data.files.iter_mut() {
+        file.tag_ids.retain(|tid| tid != &id);
+    }
+    // Detach children (flatten)
+    for tag in data.tags.iter_mut() {
+        if tag.parent_id.as_ref() == Some(&id) {
+            tag.parent_id = None;
+        }
+    }
+    // Delete tag
+    data.tags.retain(|t| t.id != id);
+    save_to_disk(&data, &state.file_path);
+}
+
+// --- File Tag Ops ---
+
+#[tauri::command]
+fn attach_tag(file_id: String, tag_id: String, state: State<AppState>) {
     let mut data = state.data.lock().unwrap();
     if let Some(file) = data.files.iter_mut().find(|f| f.id == file_id) {
-        if !file.tags.contains(&tag) {
-            file.tags.push(tag);
+        if !file.tag_ids.contains(&tag_id) {
+            file.tag_ids.push(tag_id);
             save_to_disk(&data, &state.file_path);
         }
     }
 }
 
 #[tauri::command]
-fn remove_tag(file_id: String, tag: String, state: State<AppState>) {
+fn detach_tag(file_id: String, tag_id: String, state: State<AppState>) {
     let mut data = state.data.lock().unwrap();
     if let Some(file) = data.files.iter_mut().find(|f| f.id == file_id) {
-        if let Some(pos) = file.tags.iter().position(|t| t == &tag) {
-            file.tags.remove(pos);
+        if let Some(pos) = file.tag_ids.iter().position(|t| t == &tag_id) {
+            file.tag_ids.remove(pos);
             save_to_disk(&data, &state.file_path);
         }
     }
 }
 
-#[tauri::command]
-fn rename_tag(old_tag: String, new_tag: String, state: State<AppState>) {
-    let mut data = state.data.lock().unwrap();
-    let mut changed = false;
-    for file in data.files.iter_mut() {
-        if let Some(pos) = file.tags.iter().position(|t| t == &old_tag) {
-            if !file.tags.contains(&new_tag) {
-                file.tags[pos] = new_tag.clone();
-            } else {
-                // If new tag already exists on this file, just remove the old one to avoid duplicates
-                file.tags.remove(pos);
-            }
-            changed = true;
-        }
-    }
-    if changed {
-        save_to_disk(&data, &state.file_path);
-    }
-}
-
-#[tauri::command]
-fn delete_tag(tag: String, state: State<AppState>) {
-    let mut data = state.data.lock().unwrap();
-    let mut changed = false;
-    for file in data.files.iter_mut() {
-        if let Some(pos) = file.tags.iter().position(|t| t == &tag) {
-            file.tags.remove(pos);
-            changed = true;
-        }
-    }
-    if changed {
-        save_to_disk(&data, &state.file_path);
-    }
-}
-
-#[tauri::command]
-fn get_all_files(state: State<AppState>) -> Vec<FileItem> {
-    let data = state.data.lock().unwrap();
-    data.files.clone()
-}
+// --- OS Ops ---
 
 #[tauri::command]
 fn open_file_default(path: String) -> Result<(), String> {
@@ -363,21 +440,33 @@ pub fn run() {
                 window.hide().unwrap();
                 api.prevent_close();
             }
+            tauri::WindowEvent::DragDrop(event) => {
+                if let tauri::DragDropEvent::Drop { paths, .. } = event {
+                    let paths_vec: Vec<String> = paths
+                        .iter()
+                        .map(|p| p.to_string_lossy().to_string())
+                        .collect();
+                    let _ = window.emit(
+                        "tauri://drag-drop",
+                        serde_json::json!({ "paths": paths_vec }),
+                    );
+                }
+            }
             _ => {}
         })
         .invoke_handler(tauri::generate_handler![
-            get_libraries,
-            create_library,
-            delete_library,
-            get_files,
-            get_all_files,
+            get_initial_data,
             add_files,
-            delete_file,
             delete_files,
-            add_tag,
-            remove_tag,
+            create_tag_group,
+            update_tag_group,
+            delete_tag_group,
+            create_tag,
             rename_tag,
+            move_tag,
             delete_tag,
+            attach_tag,
+            detach_tag,
             open_file_default,
             show_in_explorer,
             copy_file_to_clipboard

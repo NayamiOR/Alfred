@@ -3,92 +3,279 @@
     <div class="header">
       <button @click="goBack" class="back-btn">← {{ t('tagManage.back') }}</button>
       <h2>{{ t('tagManage.title') }}</h2>
+      <div class="header-actions">
+        <button @click="openCreateGroup" class="action-btn create">
+          <v-icon name="co-plus" scale="0.8" /> {{ t('tagManage.addGroup') }}
+        </button>
+      </div>
     </div>
 
     <div class="content">
-      <div v-if="allTags.length === 0" class="empty-state">
+      <div v-if="libraryStore.tags.length === 0 && libraryStore.groups.length === 0" class="empty-state">
         {{ t('tagManage.noTags') }}
       </div>
       
-      <div v-else class="tag-list">
-        <div v-for="tag in allTags" :key="tag" class="tag-row">
-          <div class="tag-info">
-            <span class="tag-badge">{{ tag }}</span>
-            <span class="tag-count">{{ getFileCount(tag) }} {{ t('tagManage.files') }}</span>
+      <div v-else class="tree-container">
+        
+        <!-- Groups -->
+        <div v-for="group in libraryStore.groups" :key="group.id" class="group-block">
+          <div class="group-row">
+            <span class="group-name">{{ group.name }}</span>
+            <div class="actions">
+              <button @click="editGroup(group)" class="small-btn">✎</button>
+              <button @click="deleteGroup(group.id)" class="small-btn danger">×</button>
+            </div>
           </div>
-          <div class="tag-actions">
-            <button @click="startRename(tag)" class="action-btn">{{ t('tagManage.rename') }}</button>
-            <button @click="deleteTag(tag)" class="action-btn delete">{{ t('tagManage.delete') }}</button>
+
+          <!-- Tags in Group -->
+          <div class="group-tags">
+            <template v-for="tag in getGroupTags(group.id)" :key="tag.id">
+              <div class="tag-row">
+                <span class="tag-badge">{{ tag.name }}</span>
+                <span class="tag-count">{{ getFileCount(tag.id) }}</span>
+                <div class="actions">
+                  <button @click="editTag(tag)" class="small-btn">✎</button>
+                  <button @click="deleteTag(tag.id)" class="small-btn danger">×</button>
+                </div>
+              </div>
+              <!-- Children -->
+              <div v-for="child in getChildTags(tag.id)" :key="child.id" class="tag-row child">
+                <span class="child-indicator">↳</span>
+                <span class="tag-badge">{{ child.name }}</span>
+                <span class="tag-count">{{ getFileCount(child.id) }}</span>
+                <div class="actions">
+                  <button @click="editTag(child)" class="small-btn">✎</button>
+                  <button @click="deleteTag(child.id)" class="small-btn danger">×</button>
+                </div>
+              </div>
+            </template>
           </div>
         </div>
+
+        <!-- Ungrouped -->
+        <div class="group-block" v-if="getUngroupedRootTags().length > 0">
+          <div class="group-row">
+            <span class="group-name">{{ t('sidebar.untagged') }} / Other</span>
+          </div>
+          <div class="group-tags">
+            <template v-for="tag in getUngroupedRootTags()" :key="tag.id">
+              <div class="tag-row">
+                <span class="tag-badge">{{ tag.name }}</span>
+                <span class="tag-count">{{ getFileCount(tag.id) }}</span>
+                <div class="actions">
+                  <button @click="editTag(tag)" class="small-btn">✎</button>
+                  <button @click="deleteTag(tag.id)" class="small-btn danger">×</button>
+                </div>
+              </div>
+              <!-- Children -->
+              <div v-for="child in getChildTags(tag.id)" :key="child.id" class="tag-row child">
+                <span class="child-indicator">↳</span>
+                <span class="tag-badge">{{ child.name }}</span>
+                <span class="tag-count">{{ getFileCount(child.id) }}</span>
+                <div class="actions">
+                  <button @click="editTag(child)" class="small-btn">✎</button>
+                  <button @click="deleteTag(child.id)" class="small-btn danger">×</button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <div v-if="editingTag" class="modal-backdrop" @click="cancelRename">
+    <!-- Edit/Create Group Modal -->
+    <div v-if="groupModal.visible" class="modal-backdrop" @click="closeGroupModal">
       <div class="modal" @click.stop>
-        <h3>{{ t('tagManage.renameTitle') }}</h3>
-        <input 
-          v-model="newTagName" 
-          @keyup.enter="finishRename"
-          @keyup.esc="cancelRename"
-          ref="renameInput"
-          :placeholder="t('tagManage.newName')"
-        />
+        <h3>{{ groupModal.isEdit ? 'Edit Group' : 'Create Group' }}</h3>
+        
+        <label class="input-label">Group Name</label>
+        <input v-model="groupModal.name" class="input-field" />
+        
+        <label class="input-label">Color (Hex)</label>
+        <input v-model="groupModal.color" placeholder="#RRGGBB" class="input-field" />
+        
         <div class="modal-actions">
-          <button @click="cancelRename">{{ t('tagManage.cancel') }}</button>
-          <button @click="finishRename" class="primary">{{ t('tagManage.save') }}</button>
+          <button @click="closeGroupModal">Cancel</button>
+          <button @click="saveGroup" class="primary">Save</button>
         </div>
       </div>
     </div>
 
-    <GlobalDragOverlay 
-      :visible="libraryStore.ui.dragState.isDragging" 
-      :message="libraryStore.ui.dragState.message" 
-      :type="libraryStore.ui.dragState.type" 
-    />
+    <!-- Edit/Create Tag Modal -->
+    <div v-if="tagModal.visible" class="modal-backdrop" @click="closeTagModal">
+      <div class="modal" @click.stop>
+        <h3>{{ tagModal.isEdit ? 'Edit Tag' : 'Create Tag' }}</h3>
+        <input v-model="tagModal.name" placeholder="Tag Name" class="input-field" />
+        
+        <label>Group:</label>
+        <select v-model="tagModal.groupId" class="input-field">
+          <option :value="null">None</option>
+          <option v-for="g in libraryStore.groups" :key="g.id" :value="g.id">{{ g.name }}</option>
+        </select>
+
+        <label>Parent Tag:</label>
+        <select v-model="tagModal.parentId" class="input-field">
+          <option :value="null">None</option>
+          <!-- Simple flattened list for parent selection (exclude self) -->
+          <option v-for="t in validParentTags" :key="t.id" :value="t.id">{{ t.name }}</option>
+        </select>
+
+        <div class="modal-actions">
+          <button @click="closeTagModal">Cancel</button>
+          <button @click="saveTag" class="primary">Save</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, nextTick } from 'vue';
+import { computed, reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { libraryStore, allTags, actions } from '../stores/library';
-import GlobalDragOverlay from '../components/GlobalDragOverlay.vue';
+import { libraryStore, actions, Tag, TagGroup } from '../stores/library';
 
 const { t } = useI18n();
 const router = useRouter();
-const editingTag = ref<string | null>(null);
-const newTagName = ref('');
-const renameInput = ref<HTMLInputElement | null>(null);
 
 function goBack() {
   router.back();
 }
 
-function getFileCount(tag: string) {
-  return libraryStore.files.filter(f => f.tags.includes(tag)).length;
+// Helpers
+function getGroupTags(groupId: string) {
+  return libraryStore.tags.filter(t => t.group_id === groupId && !t.parent_id);
+}
+function getUngroupedRootTags() {
+  return libraryStore.tags.filter(t => !t.group_id && !t.parent_id);
+}
+function getChildTags(parentId: string) {
+  return libraryStore.tags.filter(t => t.parent_id === parentId);
+}
+function getFileCount(tagId: string) {
+  return libraryStore.files.filter(f => f.tag_ids.includes(tagId)).length;
 }
 
-function startRename(tag: string) {
-  editingTag.value = tag;
-  newTagName.value = tag;
-  nextTick(() => renameInput.value?.focus());
+// Group Modal
+const groupModal = reactive({
+  visible: false,
+  isEdit: false,
+  id: '',
+  name: '',
+  color: '' as string | null
+});
+
+function openCreateGroup() {
+  groupModal.visible = true;
+  groupModal.isEdit = false;
+  groupModal.name = '';
+  groupModal.color = '';
 }
 
-async function finishRename() {
-  if (editingTag.value && newTagName.value.trim() && newTagName.value !== editingTag.value) {
-    await actions.renameTag(editingTag.value, newTagName.value.trim());
+function editGroup(group: TagGroup) {
+  groupModal.visible = true;
+  groupModal.isEdit = true;
+  groupModal.id = group.id;
+  groupModal.name = group.name;
+  groupModal.color = group.color || '';
+}
+
+function closeGroupModal() {
+  groupModal.visible = false;
+}
+
+async function saveGroup() {
+  if (!groupModal.name) return;
+  
+  // Validate duplicate name
+  const trimmedName = groupModal.name.trim();
+  const duplicate = libraryStore.groups.find(g => 
+    g.name.toLowerCase() === trimmedName.toLowerCase() && 
+    g.id !== groupModal.id
+  );
+
+  if (duplicate) {
+    alert(t('tagManage.duplicateGroupError') || 'A group with this name already exists.');
+    return;
   }
-  editingTag.value = null;
+  
+  // Validate color
+  const color = groupModal.color ? groupModal.color.trim() : null;
+  if (color) {
+    const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
+    if (!hexRegex.test(color)) {
+      alert('Invalid color format. Please use Hex code (e.g. #FF0000).');
+      return;
+    }
+  }
+
+  if (groupModal.isEdit) {
+    await actions.updateTagGroup(groupModal.id, trimmedName, color);
+  } else {
+    await actions.createTagGroup(trimmedName, color);
+  }
+  closeGroupModal();
 }
 
-function cancelRename() {
-  editingTag.value = null;
+async function deleteGroup(id: string) {
+  if (confirm('Delete this group? Tags will be ungrouped.')) {
+    await actions.deleteTagGroup(id);
+  }
 }
 
-async function deleteTag(tag: string) {
-  await actions.deleteTag(tag);
+// Tag Modal
+const tagModal = reactive({
+  visible: false,
+  isEdit: false,
+  id: '',
+  name: '',
+  parentId: null as string | null,
+  groupId: null as string | null
+});
+
+const validParentTags = computed(() => {
+  return libraryStore.tags.filter(t => t.id !== tagModal.id); // Prevent self-parenting
+});
+
+// Removed openCreateTag as user does not want to create tags here
+
+function editTag(tag: Tag) {
+  tagModal.visible = true;
+  tagModal.isEdit = true;
+  tagModal.id = tag.id;
+  tagModal.name = tag.name;
+  tagModal.parentId = tag.parent_id;
+  tagModal.groupId = tag.group_id;
+}
+
+function closeTagModal() {
+  tagModal.visible = false;
+}
+
+async function saveTag() {
+  if (!tagModal.name) return;
+  if (tagModal.isEdit) {
+    // Check if renaming or moving
+    const tag = libraryStore.tags.find(t => t.id === tagModal.id);
+    if (tag) {
+      if (tag.name !== tagModal.name) {
+        await actions.renameTag(tagModal.id, tagModal.name);
+      }
+      if (tag.parent_id !== tagModal.parentId || tag.group_id !== tagModal.groupId) {
+        await actions.moveTag(tagModal.id, tagModal.parentId, tagModal.groupId);
+      }
+    }
+  } 
+  // Removed create logic from here as entry point is removed, but keeping function structure for edit
+  closeTagModal();
+}
+
+async function deleteTag(id: string) {
+  if (confirm('Delete this tag?')) {
+    await actions.deleteTag(id);
+  }
 }
 </script>
 
@@ -99,7 +286,6 @@ async function deleteTag(tag: string) {
   flex-direction: column;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  position: relative;
 }
 
 .header {
@@ -107,7 +293,7 @@ async function deleteTag(tag: string) {
   border-bottom: 1px solid var(--border-color);
   display: flex;
   align-items: center;
-  gap: 16px;
+  justify-content: space-between;
 }
 
 .back-btn {
@@ -117,6 +303,23 @@ async function deleteTag(tag: string) {
   border-radius: 6px;
   cursor: pointer;
   color: var(--text-primary);
+  margin-right: 16px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.action-btn.create {
+  background-color: var(--bg-secondary);
+  border: 1px dashed var(--border-color);
+  border-radius: 6px;
+  padding: 6px 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .content {
@@ -125,65 +328,95 @@ async function deleteTag(tag: string) {
   padding: 20px;
 }
 
-.tag-list {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-width: 600px;
+.tree-container {
+  max-width: 800px;
   margin: 0 auto;
+}
+
+.group-block {
+  margin-bottom: 24px;
+  border: 1px solid var(--border-color);
+  border-radius: 8px;
+  background-color: var(--bg-secondary);
+  overflow: hidden;
+}
+
+.group-row {
+  padding: 12px;
+  background-color: var(--bg-tertiary);
+  border-bottom: 1px solid var(--border-color);
+  font-weight: 600;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.group-tags {
+  padding: 8px 0;
 }
 
 .tag-row {
   display: flex;
-  justify-content: space-between;
   align-items: center;
-  padding: 12px;
-  background-color: var(--bg-secondary);
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  gap: 12px;
 }
 
-.tag-info {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  overflow: hidden; /* Allow content to shrink */
-  flex: 1;
+.tag-row:hover {
+  background-color: var(--hover-color);
+}
+
+.tag-row.child {
+  padding-left: 32px;
+}
+
+.child-indicator {
+  color: var(--text-secondary);
+  font-size: 12px;
 }
 
 .tag-badge {
-  background-color: var(--hover-color);
+  background-color: var(--bg-tertiary);
   padding: 4px 8px;
   border-radius: 4px;
-  font-weight: 500;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  max-width: 250px; /* Sensible limit for the badge itself */
+  font-size: 14px;
 }
 
 .tag-count {
   color: var(--text-secondary);
-  font-size: 13px;
+  font-size: 12px;
+  flex: 1;
 }
 
-.action-btn {
+.actions {
+  display: flex;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+
+.tag-row:hover .actions,
+.group-row:hover .actions {
+  opacity: 1;
+}
+
+.small-btn {
   background: none;
   border: none;
-  color: var(--text-secondary);
   cursor: pointer;
-  padding: 4px 8px;
+  color: var(--text-secondary);
+  padding: 4px;
 }
 
-.action-btn:hover {
+.small-btn:hover {
   color: var(--text-primary);
-  text-decoration: underline;
 }
 
-.action-btn.delete:hover {
+.small-btn.danger:hover {
   color: #ef4444;
 }
 
+/* Modal */
 .modal-backdrop {
   position: fixed;
   top: 0; left: 0; right: 0; bottom: 0;
@@ -198,12 +431,20 @@ async function deleteTag(tag: string) {
   background: var(--bg-primary);
   padding: 24px;
   border-radius: 8px;
-  width: 300px;
+  width: 400px;
+  border: 1px solid var(--border-color);
 }
 
-.modal input {
+.input-label {
+  display: block;
+  margin-bottom: 4px;
+  font-size: 13px;
+  color: var(--text-secondary);
+}
+
+.input-field {
   width: 100%;
-  margin: 16px 0;
+  margin-bottom: 16px;
   padding: 8px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
@@ -215,10 +456,11 @@ async function deleteTag(tag: string) {
   display: flex;
   justify-content: flex-end;
   gap: 8px;
+  margin-top: 16px;
 }
 
 .modal-actions button {
-  padding: 6px 12px;
+  padding: 8px 16px;
   border-radius: 4px;
   border: 1px solid var(--border-color);
   background: var(--bg-secondary);
@@ -227,8 +469,8 @@ async function deleteTag(tag: string) {
 }
 
 .modal-actions button.primary {
-  background: var(--text-secondary); /* Accent style */
-  color: white;
+  background: var(--text-primary);
+  color: var(--bg-primary);
   border: none;
 }
 </style>

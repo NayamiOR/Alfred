@@ -1,7 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "alfred",
-  "version": "0.2.1",
   "identifier": "com.nayamior.alfred",
   "build": {
     "beforeDevCommand": "pnpm dev",
@@ -17,7 +16,8 @@
         "height": 600,
         "minWidth": 800,
         "minHeight": 600,
-        "decorations": false
+        "decorations": false,
+        "dragDropEnabled": true
       }
     ],
     "security": {

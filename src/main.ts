@@ -13,6 +13,9 @@ import {
     CoSettings,
     CoSun,
     CoTags,
+    CoCheck,
+    CoWarning,
+    CoInfo,
     FcVideoFile,
     FcAudioFile,
     FcFile,
@@ -22,9 +25,24 @@ import {
 
 const app = createApp(App);
 
-addIcons(PxArchive, CoSearch, CoHamburgerMenu, CoInbox, CoSettings, CoTags, CoSun, CoMoon, CoExpandRight, CoPlus, FcVideoFile, FcAudioFile, FcFile, FcImageFile, FcFolder, FcDocument)
+addIcons(
+    PxArchive, CoSearch, CoHamburgerMenu, CoInbox, CoSettings, 
+    CoTags, CoSun, CoMoon, CoExpandRight, CoPlus, CoCheck, CoWarning, CoInfo,
+    FcVideoFile, FcAudioFile, FcFile, FcImageFile, FcFolder, FcDocument
+)
 
 app.use(router);
 app.use(i18n);
 app.component("v-icon", OhVueIcon);
+
+// Disable context menu globally, except for inputs
+document.addEventListener('contextmenu', (event) => {
+  const target = event.target as HTMLElement;
+  const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+  
+  if (!isInput) {
+    event.preventDefault();
+  }
+});
+
 app.mount("#app");

@@ -1,6 +1,6 @@
 export default {
   routes: {
-    library: '资源库',
+    library: '文件库',
     settings: '设置',
     tags: '标签'
   },
@@ -12,32 +12,32 @@ export default {
     }
   },
   sidebar: {
-    libraries: '资源库',
     filters: '筛选',
     tags: '标签',
     untagged: '未标记',
-    noTags: '暂无自定义标签',
-    selectAll: '全选标签',
-    newLibrary: '新建资源库',
+    otherTags: '其他标签',
+    searchTags: '搜索标签...',
+    noTags: '暂无标签',
+    selectAll: '全选',
     manageTags: '管理标签',
-    delete: '删除',
-    libraryName: '资源库名称'
+    delete: '删除'
   },
   tagManage: {
-    title: '管理标签',
+    title: '标签与分组管理',
     back: '返回',
-    noTags: '未找到标签。为文件添加标签后在此管理。',
+    noTags: '暂无标签或分组。请创建以开始使用。',
     rename: '重命名',
     delete: '删除',
     renameTitle: '重命名标签',
-    newName: '新标签名称',
+    newName: '新名称',
     cancel: '取消',
     save: '保存',
-    files: '个文件'
+    files: '个文件',
+    addGroup: '新建分组',
+    addTag: '新建标签'
   },
   shortcutBar: {
-    resourceLibrary: '资源库',
-    tagsView: '标签视图',
+    resourceLibrary: '文件库',
     lightMode: '浅色模式',
     darkMode: '深色模式',
     settings: '设置'
@@ -64,9 +64,7 @@ export default {
     listView: '列表视图',
     tagInputPlaceholder: '输入标签后回车',
     dragMessage: '拖放文件到此处添加',
-    emptyNoLibraries: '暂无资源库',
-    emptyNoLibrariesDesc: '在侧边栏创建一个资源库以开始使用',
-    emptyNoFiles: '此资源库中没有文件',
+    emptyNoFiles: '暂无文件',
     emptyNoFilesDesc: '拖放文件到此处或点击 + 添加',
     editTags: '编辑标签',
     editTagsMulti: '编辑标签 ({n} 个项目)',
@@ -95,12 +93,12 @@ export default {
     none: '无',
     resetDefaults: '恢复默认'
   },
-    tray: {
+  tray: {
     show: '打开 Alfred',
     quit: '退出'
   },
   drag: {
     accept: '拖放以添加文件',
-    reject: '标签页不支持添加文件'
+    reject: '此处不支持添加文件'
   }
 };

@@ -6,19 +6,9 @@
         to="/library" 
         class="icon-button" 
         :title="t('shortcutBar.resourceLibrary')" 
-        @click="switchToLibraryMode"
-        :class="{ active: libraryStore.ui.viewMode === 'library' && route.path === '/library' }"
+        :class="{ active: route.path === '/library' || route.path === '/' }"
       >
         <v-icon name="px-archive" scale="1.2" />
-      </router-link>
-      <router-link 
-        to="/library" 
-        class="icon-button" 
-        :title="t('shortcutBar.tagsView')" 
-        @click="switchToTagMode"
-        :class="{ active: libraryStore.ui.viewMode === 'tag' && route.path === '/library' }"
-      >
-        <v-icon name="co-tags" scale="1.2" />
       </router-link>
     </div>
 
@@ -42,26 +32,12 @@
 <script setup lang="ts">
 import { useRoute } from 'vue-router';
 import { useI18n } from 'vue-i18n';
-import { libraryStore, actions } from '../stores/library';
-
 
 const { t } = useI18n();
 defineProps<{ isDarkMode: boolean }>();
 defineEmits(['toggle-dark-mode']);
 
 const route = useRoute();
-
-function switchToLibraryMode() {
-  libraryStore.ui.viewMode = 'library';
-  if (libraryStore.currentLibraryId) {
-    actions.loadFiles(libraryStore.currentLibraryId);
-  }
-}
-
-function switchToTagMode() {
-  libraryStore.ui.viewMode = 'tag';
-  actions.loadAllFiles();
-}
 </script>
 
 <style scoped>

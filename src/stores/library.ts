@@ -1,32 +1,50 @@
 import { reactive, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
+import { notify } from './notification';
 
-export interface Library {
+export interface Tag {
   id: string;
   name: string;
-  icon: string;
-  created_at: number;
+  parent_id: string | null;
+  group_id: string | null;
+}
+
+export interface TagGroup {
+  id: string;
+  name: string;
+  color: string | null;
 }
 
 export interface FileItem {
   id: string;
-  library_id: string;
   name: string;
   path: string;
   extension: string;
   size: number;
   mime_type: string;
   added_at: number;
-  tags: string[];
+  tag_ids: string[];
+}
+
+interface AddFilesResponse {
+  added_files: FileItem[];
+  skipped_duplicates: string[];
+  skipped_unsupported: string[];
+}
+
+interface AppData {
+  version: number;
+  files: FileItem[];
+  tags: Tag[];
+  groups: TagGroup[];
 }
 
 interface LibraryState {
-  libraries: Library[];
   files: FileItem[];
-  currentLibraryId: string | null;
+  tags: Tag[];
+  groups: TagGroup[];
   isLoading: boolean;
   ui: {
-    viewMode: 'library' | 'tag';
     searchQuery: string;
     cardScale: number;
     isGridView: boolean;
@@ -35,8 +53,7 @@ interface LibraryState {
       fileTypes: string[];
     };
     tagViewFilters: {
-      libraries: string[];
-      tags: string[];
+      tags: string[]; // tag IDs
     };
     sortConfig: {
       by: 'name' | 'added_at' | 'size' | 'extension';
@@ -47,16 +64,22 @@ interface LibraryState {
       type: 'accept' | 'reject';
       message: string;
     };
+    tagGroupModal: {
+      visible: boolean;
+      isEdit: boolean;
+      id: string;
+      name: string;
+      color: string | null;
+    };
   };
 }
 
 const initialLibraryState: LibraryState = {
-  libraries: [],
   files: [],
-  currentLibraryId: null,
+  tags: [],
+  groups: [],
   isLoading: false,
   ui: {
-    viewMode: 'library',
     searchQuery: '',
     cardScale: 1.0,
     isGridView: true,
@@ -65,7 +88,6 @@ const initialLibraryState: LibraryState = {
       fileTypes: []
     },
     tagViewFilters: {
-      libraries: [],
       tags: []
     },
     sortConfig: {
@@ -76,6 +98,13 @@ const initialLibraryState: LibraryState = {
       isDragging: false,
       type: 'accept',
       message: ''
+    },
+    tagGroupModal: {
+      visible: false,
+      isEdit: false,
+      id: '',
+      name: '',
+      color: null
     }
   }
 };
@@ -83,109 +112,75 @@ const initialLibraryState: LibraryState = {
 export const libraryStore = reactive<LibraryState>(initialLibraryState);
 
 export const currentFiles = computed(() => {
-  if (libraryStore.ui.viewMode === 'tag') {
-    return libraryStore.files; // Return all files for client-side filtering in tag mode
-  }
   return libraryStore.files;
 });
 
-export const allTags = computed(() => {
-  const tags = new Set<string>();
-  libraryStore.files.forEach(file => {
-    file.tags.forEach(tag => tags.add(tag));
-  });
-  return Array.from(tags).sort();
-});
+// Helper to get tag name by ID
+export function getTagName(id: string): string {
+  return libraryStore.tags.find(t => t.id === id)?.name || 'Unknown';
+}
+
+export function getTagById(id: string): Tag | undefined {
+  return libraryStore.tags.find(t => t.id === id);
+}
+
+export function getGroupById(id: string): TagGroup | undefined {
+  return libraryStore.groups.find(g => g.id === id);
+}
 
 export const actions = {
-  async loadLibraries() {
+  async loadData() {
     libraryStore.isLoading = true;
     try {
-      libraryStore.libraries = await invoke<Library[]>('get_libraries');
-      if (libraryStore.libraries.length > 0 && !libraryStore.currentLibraryId) {
-        // Select first library by default
-        libraryStore.currentLibraryId = libraryStore.libraries[0].id;
-        await this.loadFiles(libraryStore.currentLibraryId);
-      }
+      const data = await invoke<AppData>('get_initial_data');
+      libraryStore.files = data.files;
+      libraryStore.tags = data.tags;
+      libraryStore.groups = data.groups;
     } catch (error) {
-      console.error('Failed to load libraries:', error);
-    } finally {
-      libraryStore.isLoading = false;
-    }
-  },
-
-  async createLibrary(name: string) {
-    try {
-      const newLib = await invoke<Library>('create_library', { name });
-      libraryStore.libraries.push(newLib);
-      this.selectLibrary(newLib.id);
-    } catch (error) {
-      console.error('Failed to create library:', error);
-    }
-  },
-
-  async deleteLibrary(id: string) {
-    try {
-      await invoke('delete_library', { id });
-      libraryStore.libraries = libraryStore.libraries.filter(l => l.id !== id);
-      if (libraryStore.currentLibraryId === id) {
-        libraryStore.currentLibraryId = libraryStore.libraries[0]?.id || null;
-        if (libraryStore.currentLibraryId) {
-          await this.loadFiles(libraryStore.currentLibraryId);
-        } else {
-          libraryStore.files = [];
-        }
-      }
-    } catch (error) {
-      console.error('Failed to delete library:', error);
-    }
-  },
-
-  async selectLibrary(id: string) {
-    libraryStore.currentLibraryId = id;
-    await this.loadFiles(id);
-  },
-
-  async loadFiles(libraryId: string) {
-    try {
-      const files = await invoke<FileItem[]>('get_files', { libraryId });
-      libraryStore.files = files; 
-    } catch (error) {
-      console.error('Failed to load files:', error);
-    }
-  },
-
-  async loadAllFiles() {
-    libraryStore.isLoading = true;
-    try {
-      const files = await invoke<FileItem[]>('get_all_files');
-      libraryStore.files = files;
-    } catch (error) {
-      console.error('Failed to load all files:', error);
+      console.error('Failed to load data:', error);
+      notify('Failed to load library data', 'error');
     } finally {
       libraryStore.isLoading = false;
     }
   },
 
   async addFiles(paths: string[]) {
-    if (!libraryStore.currentLibraryId) return;
     try {
-      const newFiles = await invoke<FileItem[]>('add_files', { 
-        libraryId: libraryStore.currentLibraryId, 
-        paths 
-      });
-      libraryStore.files.push(...newFiles);
+      const response = await invoke<AddFilesResponse>('add_files', { paths });
+      
+      // Update store with added files
+      if (response.added_files.length > 0) {
+        libraryStore.files.push(...response.added_files);
+      }
+
+      // Notifications logic
+      const addedCount = response.added_files.length;
+      const dupCount = response.skipped_duplicates.length;
+      const unsuppCount = response.skipped_unsupported.length;
+
+      if (addedCount > 0) {
+        if (dupCount === 0 && unsuppCount === 0) {
+          notify(`Successfully added ${addedCount} file(s)`, 'success');
+        } else {
+          // Mixed result
+          let msg = `Added ${addedCount} file(s).`;
+          if (dupCount > 0) msg += ` Skipped ${dupCount} duplicate(s).`;
+          if (unsuppCount > 0) msg += ` Skipped ${unsuppCount} unsupported file(s).`;
+          notify(msg, 'warning', 5000);
+        }
+      } else {
+        // No files added
+        if (dupCount > 0 || unsuppCount > 0) {
+          let msg = 'No files added.';
+          if (dupCount > 0) msg += ` ${dupCount} duplicate(s).`;
+          if (unsuppCount > 0) msg += ` ${unsuppCount} unsupported.`;
+          notify(msg, 'error');
+        }
+      }
+
     } catch (error) {
       console.error('Failed to add files:', error);
-    }
-  },
-
-  async deleteFile(id: string) {
-    try {
-      await invoke('delete_file', { id });
-      libraryStore.files = libraryStore.files.filter(f => f.id !== id);
-    } catch (error) {
-      console.error('Failed to delete file:', error);
+      notify('Failed to add files', 'error');
     }
   },
 
@@ -194,8 +189,160 @@ export const actions = {
     try {
       await invoke('delete_files', { ids });
       libraryStore.files = libraryStore.files.filter(f => !ids.includes(f.id));
+      notify(`Deleted ${ids.length} file(s)`, 'success');
     } catch (error) {
       console.error('Failed to delete files:', error);
+      notify('Failed to delete files', 'error');
+    }
+  },
+
+  async createTagGroup(name: string, color: string | null = null) {
+    try {
+      const group = await invoke<TagGroup>('create_tag_group', { name, color });
+      libraryStore.groups.push(group);
+      notify('Group created successfully', 'success');
+    } catch (error) {
+      console.error('Failed to create group:', error);
+      notify('Failed to create group', 'error');
+    }
+  },
+
+  async updateTagGroup(id: string, name: string, color: string | null) {
+    try {
+      await invoke('update_tag_group', { id, name, color });
+      const group = libraryStore.groups.find(g => g.id === id);
+      if (group) {
+        group.name = name;
+        group.color = color;
+      }
+      notify('Group updated', 'success');
+    } catch (error) {
+      console.error('Failed to update group:', error);
+      notify('Failed to update group', 'error');
+    }
+  },
+
+  async deleteTagGroup(id: string) {
+    try {
+      await invoke('delete_tag_group', { id });
+      await this.loadData(); // Reload to sync cascading changes
+      notify('Group deleted', 'success');
+    } catch (error) {
+      console.error('Failed to delete group:', error);
+      notify('Failed to delete group', 'error');
+    }
+  },
+
+  async createTag(name: string, parentId: string | null = null, groupId: string | null = null) {
+    try {
+      const tag = await invoke<Tag>('create_tag', { name, parentId, groupId });
+      libraryStore.tags.push(tag);
+      notify('Tag created successfully', 'success');
+      return tag;
+    } catch (error) {
+      console.error('Failed to create tag:', error);
+      // Backend returns string error message for duplicates
+      notify(String(error), 'error'); 
+      return null;
+    }
+  },
+
+  async renameTag(id: string, name: string) {
+    try {
+      await invoke('rename_tag', { id, name });
+      const tag = libraryStore.tags.find(t => t.id === id);
+      if (tag) tag.name = name;
+      notify('Tag renamed', 'success');
+    } catch (error) {
+      console.error('Failed to rename tag:', error);
+      notify(String(error), 'error');
+    }
+  },
+
+  async moveTag(id: string, parentId: string | null, groupId: string | null) {
+    try {
+      await invoke('move_tag', { id, parentId, groupId });
+      const tag = libraryStore.tags.find(t => t.id === id);
+      if (tag) {
+        tag.parent_id = parentId;
+        tag.group_id = groupId;
+
+        // Recursively update children's group_id
+        const updateChildrenGroup = (parentId: string, newGroupId: string | null) => {
+          const children = libraryStore.tags.filter(t => t.parent_id === parentId);
+          for (const child of children) {
+            child.group_id = newGroupId;
+            updateChildrenGroup(child.id, newGroupId);
+          }
+        };
+        updateChildrenGroup(tag.id, groupId);
+      }
+      notify('Tag moved', 'success');
+    } catch (error) {
+      console.error('Failed to move tag:', error);
+      notify('Failed to move tag', 'error');
+    }
+  },
+
+  async deleteTag(id: string) {
+    try {
+      await invoke('delete_tag', { id });
+      await this.loadData(); // Reload to sync
+      notify('Tag deleted', 'success');
+    } catch (error) {
+      console.error('Failed to delete tag:', error);
+      notify('Failed to delete tag', 'error');
+    }
+  },
+
+  // Attach tag to files (High-level: Creates tag if name doesn't exist)
+  async attachTagByName(fileIds: string[], tagName: string) {
+    let tag = libraryStore.tags.find(t => t.name.toLowerCase() === tagName.toLowerCase());
+    
+    if (!tag) {
+      // Create new tag at root
+      tag = await this.createTag(tagName) || undefined;
+    }
+
+    if (tag) {
+      let successCount = 0;
+      for (const fileId of fileIds) {
+        const file = libraryStore.files.find(f => f.id === fileId);
+        if (file && !file.tag_ids.includes(tag.id)) {
+          await this.attachTag(fileId, tag.id);
+          successCount++;
+        }
+      }
+      if (successCount > 0) {
+        // notify(`Tagged ${successCount} file(s)`, 'success');
+        // attachTag already notifies? No, let's keep it quiet for bulk ops or single notify
+      }
+    }
+  },
+
+  async attachTag(fileId: string, tagId: string) {
+    try {
+      await invoke('attach_tag', { fileId, tagId });
+      const file = libraryStore.files.find(f => f.id === fileId);
+      if (file && !file.tag_ids.includes(tagId)) {
+        file.tag_ids.push(tagId);
+      }
+    } catch (error) {
+      console.error('Failed to attach tag:', error);
+      notify('Failed to attach tag', 'error');
+    }
+  },
+
+  async detachTag(fileId: string, tagId: string) {
+    try {
+      await invoke('detach_tag', { fileId, tagId });
+      const file = libraryStore.files.find(f => f.id === fileId);
+      if (file) {
+        file.tag_ids = file.tag_ids.filter(id => id !== tagId);
+      }
+    } catch (error) {
+      console.error('Failed to detach tag:', error);
+      notify('Failed to detach tag', 'error');
     }
   },
 
@@ -204,6 +351,7 @@ export const actions = {
       await invoke('open_file_default', { path });
     } catch (error) {
       console.error('Failed to open file:', error);
+      notify('Failed to open file', 'error');
     }
   },
 
@@ -212,67 +360,17 @@ export const actions = {
       await invoke('show_in_explorer', { path });
     } catch (error) {
       console.error('Failed to show in explorer:', error);
+      notify('Failed to show in explorer', 'error');
     }
   },
 
   async copyFile(path: string) {
     try {
       await invoke('copy_file_to_clipboard', { path });
+      notify('Copied to clipboard', 'success');
     } catch (error) {
       console.error('Failed to copy file:', error);
-    }
-  },
-
-  async addTag(fileId: string, tag: string) {
-    try {
-      await invoke('add_tag', { fileId, tag });
-      const file = libraryStore.files.find(f => f.id === fileId);
-      if (file && !file.tags.includes(tag)) {
-        file.tags.push(tag);
-      }
-    } catch (error) {
-      console.error('Failed to add tag:', error);
-    }
-  },
-
-  async removeTag(fileId: string, tag: string) {
-    try {
-      await invoke('remove_tag', { fileId, tag });
-      const file = libraryStore.files.find(f => f.id === fileId);
-      if (file) {
-        file.tags = file.tags.filter(t => t !== tag);
-      }
-    } catch (error) {
-      console.error('Failed to remove tag:', error);
-    }
-  },
-
-  async renameTag(oldTag: string, newTag: string) {
-    try {
-      await invoke('rename_tag', { oldTag, newTag });
-      libraryStore.files.forEach(file => {
-        const index = file.tags.indexOf(oldTag);
-        if (index !== -1) {
-          if (!file.tags.includes(newTag)) {
-            file.tags[index] = newTag;
-          } else {
-            file.tags.splice(index, 1);
-          }
-        }
-      });
-    } catch (error) {
-      console.error('Failed to rename tag:', error);
-    }
-  },
-
-  async deleteTag(tag: string) {
-    try {
-      await invoke('delete_tag', { tag });
-      libraryStore.files.forEach(file => {
-        file.tags = file.tags.filter(t => t !== tag);
-      });
-    } catch (error) {
-      console.error('Failed to delete tag:', error);
+      notify('Failed to copy file', 'error');
     }
   }
 };
