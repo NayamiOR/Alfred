@@ -6,6 +6,10 @@ export default {
   },
   settings: {
     title: '设置',
+    globalScale: {
+      label: '全局缩放',
+      desc: '调整界面元素大小（快捷键：Ctrl +/-）'
+    },
     autostart: {
       label: '开机启动',
       desc: '登录时自动启动 Alfred'
@@ -20,7 +24,9 @@ export default {
     noTags: '暂无标签',
     selectAll: '全选',
     manageTags: '管理标签',
-    delete: '删除'
+    delete: '删除',
+    selected: '已选择',
+    clear: '清除'
   },
   tagManage: {
     title: '标签与分组管理',

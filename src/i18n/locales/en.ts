@@ -6,6 +6,10 @@ export default {
   },
   settings: {
     title: 'Settings',
+    globalScale: {
+      label: 'Global Scale',
+      desc: 'Adjust UI element size (Shortcut: Ctrl +/-)'
+    },
     autostart: {
       label: 'Run on Startup',
       desc: 'Automatically start Alfred when you log in'
@@ -20,7 +24,9 @@ export default {
     noTags: 'No tags found.',
     selectAll: 'Select All',
     manageTags: 'Manage Tags',
-    delete: 'Delete'
+    delete: 'Delete',
+    selected: 'Selected',
+    clear: 'Clear'
   },
   tagManage: {
     title: 'Manage Tags & Groups',

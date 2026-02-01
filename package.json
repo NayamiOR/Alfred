@@ -29,6 +29,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tauri-apps/cli": "^2",
     "@vitejs/plugin-vue": "^5.2.1",
+    "@vue/devtools": "^8.0.5",
     "eslint": "^9.39.2",
     "eslint-plugin-tailwindcss": "^3.18.2",
     "eslint-plugin-vue": "^10.7.0",

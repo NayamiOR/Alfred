@@ -11,6 +11,25 @@
           <option value="en">{{ t('language.en') }}</option>
         </select>
       </div>
+
+      <div class="setting-item">
+        <div class="setting-info">
+          <span class="setting-label">{{ t('settings.globalScale.label') }}</span>
+          <span class="setting-desc">{{ t('settings.globalScale.desc') }}</span>
+        </div>
+        <div class="scale-control">
+          <input 
+            type="range" 
+            v-model.number="libraryStore.ui.globalScale" 
+            min="0.8"
+            max="1.3" 
+            step="0.1"
+            class="scale-slider"
+            @input="handleScaleChange"
+          />
+          <span class="scale-value">{{ libraryStore.ui.globalScale.toFixed(1) }}x</span>
+        </div>
+      </div>
       
       <div class="setting-item">
         <div class="setting-info">
@@ -52,6 +71,10 @@ onMounted(async () => {
 
 function changeLanguage() {
   localStorage.setItem('locale', locale.value);
+}
+
+function handleScaleChange() {
+  localStorage.setItem('globalScale', String(libraryStore.ui.globalScale));
 }
 
 async function toggleAutoStart() {
@@ -129,6 +152,45 @@ h1 {
 
 .language-select:hover {
   border-color: var(--text-primary);
+}
+
+.scale-control {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 180px;
+}
+
+.scale-slider {
+  flex: 1;
+  cursor: pointer;
+  height: 4px;
+  -webkit-appearance: none;
+  background: var(--border-color);
+  border-radius: 2px;
+  outline: none;
+}
+
+.scale-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--text-primary);
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.scale-slider::-webkit-slider-thumb:hover {
+  background: var(--text-secondary);
+}
+
+.scale-value {
+  font-size: 14px;
+  color: var(--text-secondary);
+  min-width: 32px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
 }
 
 .switch {

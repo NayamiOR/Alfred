@@ -47,6 +47,7 @@ interface LibraryState {
   ui: {
     searchQuery: string;
     cardScale: number;
+    globalScale: number;
     isGridView: boolean;
     showFilterPanel: boolean;
     filters: {
@@ -82,6 +83,7 @@ const initialLibraryState: LibraryState = {
   ui: {
     searchQuery: '',
     cardScale: 1.0,
+    globalScale: 1.0,
     isGridView: true,
     showFilterPanel: false,
     filters: {

@@ -122,7 +122,7 @@ function resetAll() {
 <style scoped>
 .filter-panel {
   position: absolute;
-  top: 56px;
+  top: 8px;
   right: 16px;
   width: 320px;
   background-color: var(--bg-secondary);

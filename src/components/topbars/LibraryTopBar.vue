@@ -19,9 +19,9 @@
         <input 
           type="range" 
           v-model.number="libraryStore.ui.cardScale" 
-          min="0.4"
-          max="2" 
-          step="0.1"
+          min="0.5"
+          max="1.5"
+          step="0.02"
           class="scale-slider"
           :title="t('library.cardSize')"
         />

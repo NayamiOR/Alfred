@@ -716,8 +716,8 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 .tag-badge {
   background: rgba(0, 0, 0, 0.6);
   color: white;
-  font-size: 10px;
-  padding: 2px 6px;
+  font-size: min(calc(22px * var(--card-scale)), 18px);
+  padding: calc(2px * var(--card-scale)) calc(6px * var(--card-scale));
   border-radius: 4px;
   backdrop-filter: blur(4px);
 }
@@ -738,8 +738,8 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 .tag-badge-small {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: 10px;
-  padding: 1px 4px;
+  font-size: min(calc(10px * var(--card-scale)), 12px);
+  padding: calc(1px * var(--card-scale)) calc(4px * var(--card-scale));
   border-radius: 3px;
   border: 1px solid var(--border-color);
 }
@@ -777,14 +777,14 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 
 .file-name {
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: min(calc(24px * var(--card-scale)), 160px);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
-.grid-item .file-name { padding: 12px; text-align: center; }
+.grid-item .file-name { padding: calc(12px * var(--card-scale)); text-align: center; }
 .list-item .file-name { flex: 1; }
 
 .file-container {

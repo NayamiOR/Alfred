@@ -13,11 +13,6 @@
       />
     </div>
 
-    <div v-if="libraryStore.ui.tagViewFilters.tags.length > 0" class="selection-status">
-      <span class="count">{{ libraryStore.ui.tagViewFilters.tags.length }} selected</span>
-      <button @click="clearSelection" class="clear-btn">Clear</button>
-    </div>
-
     <div class="library-list">
       
       <div class="filter-group">
@@ -169,6 +164,17 @@
           </template>
         </div>
       </div>
+    </div>
+
+    <div v-if="libraryStore.ui.tagViewFilters.tags.length > 0" class="selection-status">
+      <div class="selection-info">
+        <span class="selection-count">{{ libraryStore.ui.tagViewFilters.tags.length }}</span>
+        <span class="selection-label">{{ t('sidebar.selected') }}</span>
+      </div>
+      <button @click="clearSelection" class="clear-btn">
+        <v-icon name="md-close" scale="0.9" />
+        {{ t('sidebar.clear') }}
+      </button>
     </div>
 
     <div class="sidebar-footer">
@@ -493,21 +499,53 @@ onMounted(() => {
 }
 
 .selection-status {
-  padding: 0 16px 10px;
+  padding: 12px 16px;
   display: flex;
   align-items: center;
   justify-content: space-between;
+  border-top: 1px solid var(--border-color);
+  background-color: var(--bg-tertiary);
+}
+
+.selection-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.selection-count {
+  background-color: var(--text-primary);
+  color: var(--bg-primary);
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 10px;
+  min-width: 20px;
+  text-align: center;
+}
+
+.selection-label {
   font-size: 12px;
   color: var(--text-secondary);
 }
 
 .clear-btn {
-  background: none;
-  border: none;
+  background-color: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   color: var(--text-primary);
   cursor: pointer;
-  text-decoration: underline;
-  padding: 0;
+  font-size: 12px;
+  padding: 6px 12px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s;
+}
+
+.clear-btn:hover {
+  background-color: var(--hover-color);
+  border-color: var(--text-secondary);
 }
 
 .library-list {
@@ -663,6 +701,7 @@ onMounted(() => {
   align-items: center;
   gap: 6px;
   border-radius: 4px;
+  color: var(--text-primary);
 }
 
 .group-header:hover {
