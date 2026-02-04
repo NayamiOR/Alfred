@@ -33,16 +33,24 @@
             <button @click="deselectAllTypes" class="text-btn">{{ t('filter.none') }}</button>
           </div>
         </div>
-        <div class="checkbox-grid">
-          <label v-for="type in availableTypes" :key="type" class="filter-checkbox">
-            <input 
-              type="checkbox" 
-              :value="type" 
-              :checked="selectedTypes.includes(type)"
-              @change="toggleType(type)" 
-            />
-            <span class="checkbox-label">{{ type.toUpperCase() }}</span>
-          </label>
+        
+        <div class="categories-list">
+          <div v-for="cat in supportedCategories" :key="cat.key" class="category-group">
+            <h5 class="category-title">{{ t(`filter.categories.${cat.key}`) }}</h5>
+            <div class="checkbox-grid">
+              <label v-for="type in cat.types" :key="type" class="filter-checkbox">
+                <input 
+                  type="checkbox" 
+                  :value="type" 
+                  :checked="selectedTypes.includes(type)"
+                  @change="toggleType(type)" 
+                />
+                <span class="checkbox-label">
+                  {{ type === 'folder' ? t('filter.formats.folder') : type }}
+                </span>
+              </label>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -65,10 +73,6 @@ interface SortConfig {
 }
 
 const props = defineProps({
-  availableTypes: {
-    type: Array as PropType<string[]>,
-    required: true
-  },
   selectedTypes: {
     type: Array as PropType<string[]>,
     required: true
@@ -78,6 +82,17 @@ const props = defineProps({
     required: true
   }
 });
+
+const supportedCategories = [
+  { key: 'image', types: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'] },
+  { key: 'video', types: ['mp4', 'mkv', 'avi', 'mov', 'webm'] },
+  { key: 'audio', types: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] },
+  { key: 'document', types: ['pdf', 'doc', 'docx', 'txt', 'md', 'markdown', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'json', 'xml', 'epub'] },
+  { key: 'archive', types: ['zip', 'rar', '7z', 'tar', 'gz'] },
+  { key: 'other', types: ['folder'] }
+];
+
+const allSupportedTypes = supportedCategories.flatMap(c => c.types);
 
 const emit = defineEmits(['close', 'update:selectedTypes', 'update:sort', 'reset']);
 
@@ -107,7 +122,8 @@ function toggleType(type: string) {
 }
 
 function selectAllTypes() {
-  emit('update:selectedTypes', [...props.availableTypes]);
+  // Use all statically supported types instead of dynamic availableTypes
+  emit('update:selectedTypes', [...allSupportedTypes]);
 }
 
 function deselectAllTypes() {
@@ -250,9 +266,21 @@ h4 {
   color: var(--text-primary);
 }
 
+.category-group {
+  margin-bottom: 16px;
+}
+
+.category-title {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  margin: 0 0 8px 0;
+  opacity: 0.8;
+}
+
 .checkbox-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 8px;
 }
 

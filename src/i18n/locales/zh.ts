@@ -129,7 +129,18 @@ export default {
     fileTypes: '文件类型',
     all: '全部',
     none: '无',
-    resetDefaults: '恢复默认'
+    resetDefaults: '恢复默认',
+    categories: {
+      image: '图片',
+      video: '视频',
+      audio: '音频',
+      document: '文档',
+      archive: '压缩包',
+      other: '其他'
+    },
+    formats: {
+      folder: '文件夹'
+    }
   },
   tray: {
     show: '打开 Alfred',

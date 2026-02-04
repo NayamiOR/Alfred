@@ -129,7 +129,18 @@ export default {
     fileTypes: 'File Types',
     all: 'All',
     none: 'None',
-    resetDefaults: 'Reset Defaults'
+    resetDefaults: 'Reset Defaults',
+    categories: {
+      image: 'Images',
+      video: 'Videos',
+      audio: 'Audio',
+      document: 'Documents',
+      archive: 'Archives',
+      other: 'Other'
+    },
+    formats: {
+      folder: 'Folder'
+    }
   },
   tray: {
     show: 'Open Alfred',

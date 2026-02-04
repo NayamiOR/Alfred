@@ -8,7 +8,6 @@
     <transition name="slide-fade">
       <FilterPanel 
         v-if="libraryStore.ui.showFilterPanel"
-        :available-types="uniqueFileTypes"
         v-model:selected-types="libraryStore.ui.filters.fileTypes"
         v-model:sort="libraryStore.ui.sortConfig"
         @close="libraryStore.ui.showFilterPanel = false"
@@ -312,9 +311,11 @@ function endSelection() {
   window.removeEventListener('mouseup', endSelection);
 }
 
+/*
 const uniqueFileTypes = computed(() => {
   return [...new Set(currentFiles.value.map(f => f.extension))];
 });
+*/
 
 const filteredFiles = computed(() => {
   let result = [...currentFiles.value];
