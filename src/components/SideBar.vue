@@ -319,7 +319,8 @@ const draggingTagId = ref<string | null>(null);
 const draggedTag = ref<Tag | null>(null);
 const dragPreview = ref<HTMLElement | null>(null);
 const isDragging = ref(false);
-const dragOffset = ref({ x: 0, y: 0 });
+const dragStartPos = ref({ x: 0, y: 0 });
+const DRAG_THRESHOLD = 5;
 
 function isDraggingTag(id: string) {
   return draggingTagId.value === id;
@@ -331,34 +332,49 @@ function onMouseDown(tag: Tag, event: MouseEvent) {
 
   event.preventDefault();
 
-  const element = event.currentTarget as HTMLElement;
-  const rect = element.getBoundingClientRect();
-  dragOffset.value = {
-    x: event.clientX - rect.left,
-    y: event.clientY - rect.top
-  };
-
+  dragStartPos.value = { x: event.clientX, y: event.clientY };
+  
+  // Store potential drag tag, but don't start dragging yet
   draggedTag.value = tag;
-  draggingTagId.value = tag.id;
-  isDragging.value = true;
-
-  // Set tag ID on window for FileLibrary to detect
-  (window as any).__draggingTagId = tag.id;
-
-  createDragPreview(tag, event.clientX, event.clientY, rect.width, rect.height);
+  draggingTagId.value = null; // Don't highlight yet
+  isDragging.value = false;
 
   window.addEventListener('mousemove', onMouseMove);
   window.addEventListener('mouseup', onMouseUp);
 }
 
 function onMouseMove(event: MouseEvent) {
-  if (!isDragging.value || !dragPreview.value) return;
+  if (!draggedTag.value) return;
 
-  const x = event.clientX - dragOffset.value.x;
-  const y = event.clientY - dragOffset.value.y;
+  if (!isDragging.value) {
+    const dx = event.clientX - dragStartPos.value.x;
+    const dy = event.clientY - dragStartPos.value.y;
+    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
+      startDragging(event);
+    }
+  }
 
-  dragPreview.value.style.left = x + 'px';
-  dragPreview.value.style.top = y + 'px';
+  if (isDragging.value && dragPreview.value) {
+    // Offset preview to bottom-right of cursor
+    const offset = 15; 
+    const x = event.clientX + offset;
+    const y = event.clientY + offset;
+
+    dragPreview.value.style.left = x + 'px';
+    dragPreview.value.style.top = y + 'px';
+  }
+}
+
+function startDragging(event: MouseEvent) {
+  if (!draggedTag.value) return;
+  
+  isDragging.value = true;
+  draggingTagId.value = draggedTag.value.id;
+  
+  // Set tag ID on window for FileLibrary to detect
+  (window as any).__draggingTagId = draggedTag.value.id;
+
+  createDragPreview(draggedTag.value, event.clientX, event.clientY);
 }
 
 function onMouseUp(event: MouseEvent) {
@@ -382,15 +398,16 @@ function onMouseUp(event: MouseEvent) {
   isDragging.value = false;
 }
 
-function createDragPreview(tag: Tag, x: number, y: number, width: number, height: number) {
+function createDragPreview(tag: Tag, x: number, y: number) {
   const preview = document.createElement('div');
   preview.className = 'drag-preview';
   preview.innerHTML = `<span>${tag.name}</span>`;
-  preview.style.left = (x - dragOffset.value.x) + 'px';
-  preview.style.top = (y - dragOffset.value.y) + 'px';
-  preview.style.width = width + 'px';
-  preview.style.height = height + 'px';
-  preview.style.minWidth = '100px';
+  
+  // Initial position at cursor offset
+  const offset = 15;
+  preview.style.left = (x + offset) + 'px';
+  preview.style.top = (y + offset) + 'px';
+  
   document.body.appendChild(preview);
   dragPreview.value = preview;
 }
@@ -720,25 +737,32 @@ onMounted(() => {
   /* Wrappers for drag events */
 }
 
-/* Drag Preview Styles */
+</style>
+
+<style>
+/* Drag Preview Styles (Global) */
 .drag-preview {
   position: fixed;
   pointer-events: none;
   z-index: 9999;
-  padding: 6px 10px;
+  padding: 4px 8px; /* Reduced padding */
   background: var(--bg-primary);
   border: 1px solid var(--border-color);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: 4px;
+  font-size: 12px; /* Reduced font size */
   color: var(--text-primary);
   opacity: 0.9;
-  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   cursor: grabbing;
-  transform: rotate(2deg);
+  /* Removed rotate for cleaner look, or keep slight tilt */
+  transform: rotate(2deg); 
   transition: transform 0.1s ease;
+  white-space: nowrap; /* Prevent wrapping */
+  max-width: 200px; /* Limit max width */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-
 </style>

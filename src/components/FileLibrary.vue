@@ -42,7 +42,7 @@
           @contextmenu.prevent.stop="showContextMenu($event, file)"
           @dragover.prevent="onDragOver"
           @drop.stop="onDropTagToFile($event, file)"
-          @mouseup.stop="onMouseUp($event, file)"
+          @mouseup="onMouseUp($event, file)"
           ref="fileItemRefs"
         >
         <div :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
