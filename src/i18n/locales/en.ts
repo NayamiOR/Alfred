@@ -40,7 +40,10 @@ export default {
     save: 'Save',
     files: 'files',
     addGroup: 'New Group',
-    addTag: 'New Tag'
+    addTag: 'New Tag',
+    duplicateGroupError: 'A group with this name already exists.',
+    deleteGroupTitle: 'Delete Group',
+    deleteGroupMessage: 'Are you sure you want to delete this group? Tags will be ungrouped.'
   },
   shortcutBar: {
     resourceLibrary: 'Files',
@@ -83,7 +86,36 @@ export default {
     contextEditTags: 'Edit Tags...',
     contextEditTagsMulti: 'Edit Tags ({n} items)...',
     previewNotAvailable: 'Preview not available',
-    openFile: 'Open File'
+    openFile: 'Open File',
+    notify: {
+      addedFiles: 'Successfully added {count} file(s)',
+      deletedFiles: 'Deleted {count} file(s)',
+      groupCreated: 'Group created successfully',
+      groupUpdated: 'Group updated',
+      groupDeleted: 'Group deleted',
+      tagCreated: 'Tag created successfully',
+      tagRenamed: 'Tag renamed',
+      tagMoved: 'Tag moved',
+      tagDeleted: 'Tag deleted',
+      copiedToClipboard: 'Copied to clipboard',
+      loadDataFailed: 'Failed to load library data',
+      addFilesFailed: 'Failed to add files',
+      deleteFilesFailed: 'Failed to delete files',
+      createGroupFailed: 'Failed to create group',
+      updateGroupFailed: 'Failed to update group',
+      deleteGroupFailed: 'Failed to delete group',
+      moveTagFailed: 'Failed to move tag',
+      deleteTagFailed: 'Failed to delete tag',
+      attachTagFailed: 'Failed to attach tag',
+      detachTagFailed: 'Failed to detach tag',
+      openFileFailed: 'Failed to open file',
+      showInExplorerFailed: 'Failed to show in explorer',
+      copyFileFailed: 'Failed to copy file',
+      addFilesResult: 'Added {added} file(s).',
+      skippedDuplicates: 'Skipped {count} duplicate(s).',
+      skippedUnsupported: 'Skipped {count} unsupported file(s).',
+      noFilesAdded: 'No files added.'
+    }
   },
   filter: {
     title: 'Sort & Filter',

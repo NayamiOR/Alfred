@@ -20,14 +20,14 @@
         <div class="scale-control">
           <input 
             type="range" 
-            v-model.number="libraryStore.ui.globalScale" 
+            v-model.number="localGlobalScale" 
             min="0.8"
             max="1.3" 
             step="0.1"
             class="scale-slider"
-            @input="handleScaleChange"
+            @change="handleScaleChange"
           />
-          <span class="scale-value">{{ libraryStore.ui.globalScale.toFixed(1) }}x</span>
+          <span class="scale-value">{{ localGlobalScale.toFixed(1) }}x</span>
         </div>
       </div>
       
@@ -52,7 +52,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { isEnabled, enable, disable } from '@tauri-apps/plugin-autostart';
 import { libraryStore } from '../stores/library';
@@ -60,6 +60,13 @@ import GlobalDragOverlay from '../components/GlobalDragOverlay.vue';
 
 const { t, locale } = useI18n();
 const isAutoStartEnabled = ref(false);
+// Local ref for deferred update
+const localGlobalScale = ref(libraryStore.ui.globalScale);
+
+// Sync local ref if store changes externally
+watch(() => libraryStore.ui.globalScale, (newVal) => {
+  localGlobalScale.value = newVal;
+});
 
 onMounted(async () => {
   try {
@@ -74,6 +81,8 @@ function changeLanguage() {
 }
 
 function handleScaleChange() {
+  // Commit to store and localStorage on release (change event)
+  libraryStore.ui.globalScale = localGlobalScale.value;
   localStorage.setItem('globalScale', String(libraryStore.ui.globalScale));
 }
 

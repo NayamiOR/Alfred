@@ -24,6 +24,7 @@
           step="0.02"
           class="scale-slider"
           :title="t('library.cardSize')"
+          @change="saveCardScale"
         />
       </div>
 
@@ -91,6 +92,10 @@ function showAddMenu() {
     };
     addMenuVisible.value = true;
   }
+}
+
+function saveCardScale() {
+  localStorage.setItem('cardScale', String(libraryStore.ui.cardScale));
 }
 
 async function handleMenuAction(action: string) {

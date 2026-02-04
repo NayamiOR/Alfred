@@ -35,7 +35,8 @@ function close() {
   pointer-events: auto;
   min-width: 250px;
   max-width: 400px;
-  background: white;
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
   border-radius: 8px;
   padding: 12px 16px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
@@ -44,7 +45,7 @@ function close() {
   gap: 12px;
   cursor: pointer;
   border-left: 4px solid transparent;
-  color: #333;
+  color: var(--text-primary);
   font-size: 14px;
   line-height: 1.4;
 }
@@ -92,7 +93,7 @@ function close() {
 .close-btn {
   background: none;
   border: none;
-  color: #9ca3af;
+  color: var(--text-secondary);
   font-size: 18px;
   cursor: pointer;
   padding: 0;
@@ -101,7 +102,7 @@ function close() {
 }
 
 .close-btn:hover {
-  color: #4b5563;
+  color: var(--text-primary);
 }
 
 /* Dark mode support could be added here using global classes */

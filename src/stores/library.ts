@@ -1,6 +1,10 @@
 import { reactive, computed } from 'vue';
 import { invoke } from '@tauri-apps/api/core';
 import { notify } from './notification';
+import i18n from '../i18n';
+
+const t = (key: string, values?: any) => i18n.global.t(key, values);
+
 
 export interface Tag {
   id: string;
@@ -82,8 +86,8 @@ const initialLibraryState: LibraryState = {
   isLoading: false,
   ui: {
     searchQuery: '',
-    cardScale: 1.0,
-    globalScale: 1.0,
+    cardScale: Number(localStorage.getItem('cardScale')) || 1.0,
+    globalScale: Number(localStorage.getItem('globalScale')) || 1.0,
     isGridView: true,
     showFilterPanel: false,
     filters: {
@@ -140,7 +144,7 @@ export const actions = {
       libraryStore.groups = data.groups;
     } catch (error) {
       console.error('Failed to load data:', error);
-      notify('Failed to load library data', 'error');
+      notify(t('library.notify.loadDataFailed'), 'error');
     } finally {
       libraryStore.isLoading = false;
     }
@@ -162,27 +166,27 @@ export const actions = {
 
       if (addedCount > 0) {
         if (dupCount === 0 && unsuppCount === 0) {
-          notify(`Successfully added ${addedCount} file(s)`, 'success');
+          notify(t('library.notify.addedFiles', { count: addedCount }), 'success');
         } else {
           // Mixed result
-          let msg = `Added ${addedCount} file(s).`;
-          if (dupCount > 0) msg += ` Skipped ${dupCount} duplicate(s).`;
-          if (unsuppCount > 0) msg += ` Skipped ${unsuppCount} unsupported file(s).`;
+          let msg = t('library.notify.addFilesResult', { added: addedCount });
+          if (dupCount > 0) msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
+          if (unsuppCount > 0) msg += ' ' + t('library.notify.skippedUnsupported', { count: unsuppCount });
           notify(msg, 'warning', 5000);
         }
       } else {
         // No files added
         if (dupCount > 0 || unsuppCount > 0) {
-          let msg = 'No files added.';
-          if (dupCount > 0) msg += ` ${dupCount} duplicate(s).`;
-          if (unsuppCount > 0) msg += ` ${unsuppCount} unsupported.`;
+          let msg = t('library.notify.noFilesAdded');
+          if (dupCount > 0) msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
+          if (unsuppCount > 0) msg += ' ' + t('library.notify.skippedUnsupported', { count: unsuppCount });
           notify(msg, 'error');
         }
       }
 
     } catch (error) {
       console.error('Failed to add files:', error);
-      notify('Failed to add files', 'error');
+      notify(t('library.notify.addFilesFailed'), 'error');
     }
   },
 
@@ -191,10 +195,10 @@ export const actions = {
     try {
       await invoke('delete_files', { ids });
       libraryStore.files = libraryStore.files.filter(f => !ids.includes(f.id));
-      notify(`Deleted ${ids.length} file(s)`, 'success');
+      notify(t('library.notify.deletedFiles', { count: ids.length }), 'success');
     } catch (error) {
       console.error('Failed to delete files:', error);
-      notify('Failed to delete files', 'error');
+      notify(t('library.notify.deleteFilesFailed'), 'error');
     }
   },
 
@@ -202,10 +206,10 @@ export const actions = {
     try {
       const group = await invoke<TagGroup>('create_tag_group', { name, color });
       libraryStore.groups.push(group);
-      notify('Group created successfully', 'success');
+      notify(t('library.notify.groupCreated'), 'success');
     } catch (error) {
       console.error('Failed to create group:', error);
-      notify('Failed to create group', 'error');
+      notify(t('library.notify.createGroupFailed'), 'error');
     }
   },
 
@@ -217,10 +221,10 @@ export const actions = {
         group.name = name;
         group.color = color;
       }
-      notify('Group updated', 'success');
+      notify(t('library.notify.groupUpdated'), 'success');
     } catch (error) {
       console.error('Failed to update group:', error);
-      notify('Failed to update group', 'error');
+      notify(t('library.notify.updateGroupFailed'), 'error');
     }
   },
 
@@ -228,10 +232,10 @@ export const actions = {
     try {
       await invoke('delete_tag_group', { id });
       await this.loadData(); // Reload to sync cascading changes
-      notify('Group deleted', 'success');
+      notify(t('library.notify.groupDeleted'), 'success');
     } catch (error) {
       console.error('Failed to delete group:', error);
-      notify('Failed to delete group', 'error');
+      notify(t('library.notify.deleteGroupFailed'), 'error');
     }
   },
 
@@ -239,7 +243,7 @@ export const actions = {
     try {
       const tag = await invoke<Tag>('create_tag', { name, parentId, groupId });
       libraryStore.tags.push(tag);
-      notify('Tag created successfully', 'success');
+      notify(t('library.notify.tagCreated'), 'success');
       return tag;
     } catch (error) {
       console.error('Failed to create tag:', error);
@@ -254,7 +258,7 @@ export const actions = {
       await invoke('rename_tag', { id, name });
       const tag = libraryStore.tags.find(t => t.id === id);
       if (tag) tag.name = name;
-      notify('Tag renamed', 'success');
+      notify(t('library.notify.tagRenamed'), 'success');
     } catch (error) {
       console.error('Failed to rename tag:', error);
       notify(String(error), 'error');
@@ -279,10 +283,10 @@ export const actions = {
         };
         updateChildrenGroup(tag.id, groupId);
       }
-      notify('Tag moved', 'success');
+      notify(t('library.notify.tagMoved'), 'success');
     } catch (error) {
       console.error('Failed to move tag:', error);
-      notify('Failed to move tag', 'error');
+      notify(t('library.notify.moveTagFailed'), 'error');
     }
   },
 
@@ -290,10 +294,10 @@ export const actions = {
     try {
       await invoke('delete_tag', { id });
       await this.loadData(); // Reload to sync
-      notify('Tag deleted', 'success');
+      notify(t('library.notify.tagDeleted'), 'success');
     } catch (error) {
       console.error('Failed to delete tag:', error);
-      notify('Failed to delete tag', 'error');
+      notify(t('library.notify.deleteTagFailed'), 'error');
     }
   },
 
@@ -331,7 +335,7 @@ export const actions = {
       }
     } catch (error) {
       console.error('Failed to attach tag:', error);
-      notify('Failed to attach tag', 'error');
+      notify(t('library.notify.attachTagFailed'), 'error');
     }
   },
 
@@ -344,7 +348,7 @@ export const actions = {
       }
     } catch (error) {
       console.error('Failed to detach tag:', error);
-      notify('Failed to detach tag', 'error');
+      notify(t('library.notify.detachTagFailed'), 'error');
     }
   },
 
@@ -353,7 +357,7 @@ export const actions = {
       await invoke('open_file_default', { path });
     } catch (error) {
       console.error('Failed to open file:', error);
-      notify('Failed to open file', 'error');
+      notify(t('library.notify.openFileFailed'), 'error');
     }
   },
 
@@ -362,17 +366,17 @@ export const actions = {
       await invoke('show_in_explorer', { path });
     } catch (error) {
       console.error('Failed to show in explorer:', error);
-      notify('Failed to show in explorer', 'error');
+      notify(t('library.notify.showInExplorerFailed'), 'error');
     }
   },
 
   async copyFile(path: string) {
     try {
       await invoke('copy_file_to_clipboard', { path });
-      notify('Copied to clipboard', 'success');
+      notify(t('library.notify.copiedToClipboard'), 'success');
     } catch (error) {
       console.error('Failed to copy file:', error);
-      notify('Failed to copy file', 'error');
+      notify(t('library.notify.copyFileFailed'), 'error');
     }
   }
 };

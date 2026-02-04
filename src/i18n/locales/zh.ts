@@ -40,7 +40,10 @@ export default {
     save: '保存',
     files: '个文件',
     addGroup: '新建分组',
-    addTag: '新建标签'
+    addTag: '新建标签',
+    duplicateGroupError: '分组名称已存在',
+    deleteGroupTitle: '删除分组',
+    deleteGroupMessage: '确定要删除此分组吗？其中的标签将变为未分组状态。'
   },
   shortcutBar: {
     resourceLibrary: '文件库',
@@ -83,7 +86,36 @@ export default {
     contextEditTags: '编辑标签...',
     contextEditTagsMulti: '编辑标签 ({n} 个项目)...',
     previewNotAvailable: '预览不可用',
-    openFile: '打开文件'
+    openFile: '打开文件',
+    notify: {
+      addedFiles: '成功添加 {count} 个文件',
+      deletedFiles: '删除 {count} 个文件',
+      groupCreated: '分组创建成功',
+      groupUpdated: '分组已更新',
+      groupDeleted: '分组已删除',
+      tagCreated: '标签创建成功',
+      tagRenamed: '标签已重命名',
+      tagMoved: '标签已移动',
+      tagDeleted: '标签已删除',
+      copiedToClipboard: '已复制到剪贴板',
+      loadDataFailed: '加载库数据失败',
+      addFilesFailed: '添加文件失败',
+      deleteFilesFailed: '删除文件失败',
+      createGroupFailed: '创建分组失败',
+      updateGroupFailed: '更新分组失败',
+      deleteGroupFailed: '删除分组失败',
+      moveTagFailed: '移动标签失败',
+      deleteTagFailed: '删除标签失败',
+      attachTagFailed: '添加标签失败',
+      detachTagFailed: '移除标签失败',
+      openFileFailed: '打开文件失败',
+      showInExplorerFailed: '打开所在位置失败',
+      copyFileFailed: '复制文件失败',
+      addFilesResult: '添加了 {added} 个文件。',
+      skippedDuplicates: '跳过 {count} 个重复文件。',
+      skippedUnsupported: '跳过 {count} 个不支持的文件。',
+      noFilesAdded: '未添加文件。'
+    }
   },
   filter: {
     title: '排序与筛选',

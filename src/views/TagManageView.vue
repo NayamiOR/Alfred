@@ -114,12 +114,12 @@
           <option v-for="g in libraryStore.groups" :key="g.id" :value="g.id">{{ g.name }}</option>
         </select>
 
-        <label>Parent Tag:</label>
+        <!-- Parent Tag selection disabled -->
+        <!-- <label>Parent Tag:</label>
         <select v-model="tagModal.parentId" class="input-field">
           <option :value="null">None</option>
-          <!-- Simple flattened list for parent selection (exclude self) -->
           <option v-for="t in validParentTags" :key="t.id" :value="t.id">{{ t.name }}</option>
-        </select>
+        </select> -->
 
         <div class="modal-actions">
           <button @click="closeTagModal">Cancel</button>
@@ -128,14 +128,27 @@
       </div>
     </div>
 
+    <!-- Confirmation Modal -->
+    <div v-if="confirmModal.visible" class="modal-backdrop" @click="closeConfirmModal">
+      <div class="modal" @click.stop>
+        <h3>{{ confirmModal.title }}</h3>
+        <p class="modal-message">{{ confirmModal.message }}</p>
+        <div class="modal-actions">
+          <button @click="closeConfirmModal">Cancel</button>
+          <button @click="confirmAction" class="primary danger">Delete</button>
+        </div>
+      </div>
+    </div>
+
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, reactive } from 'vue';
+import { reactive } from 'vue';
 import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { libraryStore, actions, Tag, TagGroup } from '../stores/library';
+import { notify } from '../stores/notification';
 
 const { t } = useI18n();
 const router = useRouter();
@@ -197,7 +210,7 @@ async function saveGroup() {
   );
 
   if (duplicate) {
-    alert(t('tagManage.duplicateGroupError') || 'A group with this name already exists.');
+    notify(t('tagManage.duplicateGroupError'), 'error');
     return;
   }
   
@@ -219,10 +232,33 @@ async function saveGroup() {
   closeGroupModal();
 }
 
-async function deleteGroup(id: string) {
-  if (confirm('Delete this group? Tags will be ungrouped.')) {
-    await actions.deleteTagGroup(id);
+// Confirmation Modal
+const confirmModal = reactive({
+  visible: false,
+  title: '',
+  message: '',
+  action: null as (() => Promise<void>) | null
+});
+
+function closeConfirmModal() {
+  confirmModal.visible = false;
+  confirmModal.action = null;
+}
+
+async function confirmAction() {
+  if (confirmModal.action) {
+    await confirmModal.action();
   }
+  closeConfirmModal();
+}
+
+function deleteGroup(id: string) {
+  confirmModal.title = t('tagManage.deleteGroupTitle');
+  confirmModal.message = t('tagManage.deleteGroupMessage');
+  confirmModal.visible = true;
+  confirmModal.action = async () => {
+    await actions.deleteTagGroup(id);
+  };
 }
 
 // Tag Modal
@@ -235,9 +271,11 @@ const tagModal = reactive({
   groupId: null as string | null
 });
 
+/*
 const validParentTags = computed(() => {
   return libraryStore.tags.filter(t => t.id !== tagModal.id); // Prevent self-parenting
 });
+*/
 
 // Removed openCreateTag as user does not want to create tags here
 
@@ -273,11 +311,27 @@ async function saveTag() {
 }
 
 async function deleteTag(id: string) {
-  if (confirm('Delete this tag?')) {
-    await actions.deleteTag(id);
-  }
+  // Directly delete without confirmation as requested
+  await actions.deleteTag(id);
 }
 </script>
+
+<style scoped>
+/* ... (existing styles) ... */
+
+.modal-message {
+  margin-bottom: 24px;
+  color: var(--text-primary);
+  line-height: 1.5;
+}
+
+.modal-actions button.danger {
+  background: #ef4444;
+  color: white;
+  border: none;
+}
+
+</style>
 
 <style scoped>
 .tag-manage-view {

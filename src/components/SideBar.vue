@@ -400,8 +400,9 @@ function handleDrop(x: number, y: number) {
   if (!targetElement || !draggedTag.value) return;
   
   const groupSection = targetElement.closest('.group-section');
-  const tagWrapper = targetElement.closest('.tag-wrapper, .child-tag');
+  // const tagWrapper = targetElement.closest('.tag-wrapper, .child-tag');
   
+  /* Nesting disabled temporarily
   if (tagWrapper) {
     const tagId = tagWrapper.getAttribute('data-tag-id');
     if (tagId && tagId !== draggedTag.value.id) {
@@ -410,7 +411,9 @@ function handleDrop(x: number, y: number) {
         actions.moveTag(draggedTag.value.id, targetTag.id, targetTag.group_id);
       }
     }
-  } else if (groupSection) {
+  } else */ 
+  
+  if (groupSection) {
     const groupId = groupSection.getAttribute('data-group-id');
     if (groupId === 'ungrouped') {
       actions.moveTag(draggedTag.value.id, null, null);
@@ -448,9 +451,9 @@ async function handleMenuAction(action: string) {
       await actions.renameTag(tag.id, newName);
     }
   } else if (action === 'delete') {
-    if (confirm(t('tagManage.delete') + '?')) {
+    // if (confirm(t('tagManage.delete') + '?')) {
       await actions.deleteTag(tag.id);
-    }
+    // }
   }
 }
 
