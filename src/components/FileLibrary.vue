@@ -850,7 +850,7 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 .tag-badge-small {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: min(calc(11px * var(--card-scale)), 12px);
+  font-size: min(calc(22* var(--card-scale)), 18px);
   padding: calc(2px * var(--card-scale)) calc(8px * var(--card-scale));
   border-radius: 999px; /* Pill shape */
   border: 1px solid var(--border-color);
