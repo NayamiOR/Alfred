@@ -37,6 +37,7 @@
           v-for="(file, index) in filteredFiles"
           :key="file.id"
           :class="['file-item', { 'grid-item': libraryStore.ui.isGridView, 'list-item': !libraryStore.ui.isGridView, 'selected': selectedFileIds.has(file.id) }]"
+          :data-id="file.id"
           @click.stop="selectFile(file, index, $event)"
           @dblclick.stop="openFile(file)"
           @contextmenu.prevent.stop="showContextMenu($event, file)"
@@ -443,7 +444,10 @@ function handleGlobalKeyDown(e: KeyboardEvent) {
     e.preventDefault();
     deleteSelectedFiles();
   } else if (e.key === ' ' && !e.repeat) {
-    if (selectedFileIds.value.size > 0) {
+    if (preview.visible) {
+      e.preventDefault();
+      preview.visible = false;
+    } else if (selectedFileIds.value.size > 0) {
       e.preventDefault();
       const targetId = lastSelectedId.value || Array.from(selectedFileIds.value)[0];
       const file = filteredFiles.value.find(f => f.id === targetId);
@@ -452,6 +456,136 @@ function handleGlobalKeyDown(e: KeyboardEvent) {
   } else if ((e.ctrlKey || e.metaKey) && (e.key === 'a' || e.key === 'A')) {
     e.preventDefault();
     selectAll();
+  } else if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) {
+    e.preventDefault();
+    navigateSelection(e.key, e.shiftKey);
+  }
+}
+
+function navigateSelection(key: string, shift: boolean) {
+  const files = filteredFiles.value;
+  if (files.length === 0) return;
+
+  // Find current focus
+  let currentIndex = -1;
+  const currentId = preview.visible && preview.file ? preview.file.id : (lastSelectedId.value || (selectedFileIds.value.size > 0 ? Array.from(selectedFileIds.value)[0] : null));
+  
+  if (currentId) {
+    currentIndex = files.findIndex(f => f.id === currentId);
+  }
+
+  // If selection is invalid/filtered out, select first
+  if (currentIndex === -1) {
+    if (files.length > 0) {
+      const first = files[0];
+      updateSelectionState(first.id, 0, false);
+      scrollToItem(first.id);
+      if (preview.visible) preview.file = first;
+    }
+    return;
+  }
+
+  let nextIndex = currentIndex;
+  const isGrid = libraryStore.ui.isGridView;
+
+  // Direction Logic
+  const isPreview = preview.visible;
+  
+  if (isPreview) {
+     // Preview Mode: Left/Up = Prev, Right/Down = Next
+     if (key === 'ArrowLeft' || key === 'ArrowUp') nextIndex--;
+     else if (key === 'ArrowRight' || key === 'ArrowDown') nextIndex++;
+  } else {
+     // Normal Mode
+     if (!isGrid) {
+        // List
+        if (key === 'ArrowUp' || key === 'ArrowLeft') nextIndex--;
+        else if (key === 'ArrowDown' || key === 'ArrowRight') nextIndex++;
+     } else {
+        // Grid
+        if (key === 'ArrowLeft') nextIndex--;
+        else if (key === 'ArrowRight') nextIndex++;
+        else if (key === 'ArrowUp' || key === 'ArrowDown') {
+           const cols = calculateGridColumns();
+           if (key === 'ArrowUp') nextIndex -= cols;
+           if (key === 'ArrowDown') nextIndex += cols;
+        }
+     }
+  }
+
+  // Clamp
+  if (nextIndex < 0) nextIndex = 0;
+  if (nextIndex >= files.length) nextIndex = files.length - 1;
+
+  if (nextIndex !== currentIndex) {
+    const target = files[nextIndex];
+    
+    // Update Selection
+    updateSelectionState(target.id, nextIndex, shift);
+    
+    // Scroll
+    scrollToItem(target.id);
+    
+    // Update Preview if open
+    if (isPreview) {
+      preview.file = target;
+    }
+  }
+}
+
+function calculateGridColumns() {
+  if (!fileContainerRef.value) return 1;
+  // Subtract padding (40px total: 20 left + 20 right)
+  const availableWidth = fileContainerRef.value.clientWidth - 40;
+  const cardScale = libraryStore.ui.cardScale;
+  // Item width defined in CSS: 200 * scale
+  const itemWidth = 200 * cardScale;
+  // Gap: 20px
+  const gap = 20;
+  
+  // Logic: N * w + (N-1) * gap <= available
+  // N * (w + gap) - gap <= available
+  // N * (w + gap) <= available + gap
+  const cols = Math.floor((availableWidth + gap) / (itemWidth + gap));
+  return Math.max(1, cols);
+}
+
+function scrollToItem(id: string) {
+  if (!fileContainerRef.value) return;
+  const el = fileContainerRef.value.querySelector(`.file-item[data-id="${id}"]`);
+  if (el) {
+    // scrollIntoViewIfNeeded is non-standard but scrollIntoView is standard
+    // block: 'nearest' ensures minimal scrolling
+    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+}
+
+function updateSelectionState(targetId: string, targetIndex: number, shift: boolean) {
+  // If shift and we have an anchor
+  if (shift && lastSelectedId.value) {
+    const anchorId = lastSelectedId.value;
+    const anchorIndex = filteredFiles.value.findIndex(f => f.id === anchorId);
+    
+    if (anchorIndex !== -1) {
+      selectedFileIds.value.clear();
+      const start = Math.min(anchorIndex, targetIndex);
+      const end = Math.max(anchorIndex, targetIndex);
+      
+      for (let i = start; i <= end; i++) {
+        selectedFileIds.value.add(filteredFiles.value[i].id);
+      }
+      // Note: we do NOT update lastSelectedId (anchor) when shift-selecting
+    } else {
+      // Anchor lost, treat as single select new anchor
+      selectedFileIds.value.clear();
+      selectedFileIds.value.add(targetId);
+      lastSelectedId.value = targetId;
+    }
+  } else {
+    // Single select
+    selectedFileIds.value.clear();
+    selectedFileIds.value.add(targetId);
+    lastSelectedId.value = targetId;
   }
 }
 

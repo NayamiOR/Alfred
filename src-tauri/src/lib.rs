@@ -57,7 +57,11 @@ pub struct AddFilesResponse {
 }
 
 #[tauri::command]
-fn add_files(paths: Vec<String>, state: State<AppState>) -> AddFilesResponse {
+fn add_files(
+    app: tauri::AppHandle,
+    paths: Vec<String>,
+    state: State<AppState>,
+) -> AddFilesResponse {
     let mut data = state.data.lock().unwrap();
     let mut added_files = Vec::new();
     let mut skipped_duplicates = Vec::new();
@@ -94,6 +98,19 @@ fn add_files(paths: Vec<String>, state: State<AppState>) -> AddFilesResponse {
         let path = Path::new(&path_str);
         if !path.exists() {
             continue;
+        }
+
+        // Dynamically allow access to this path immediately
+        let scope = app.fs_scope();
+        let ret = if path.is_dir() {
+            scope.allow_directory(path, true)
+        } else {
+            scope.allow_file(path)
+        };
+
+        if let Err(e) = ret {
+            // Log error to console/terminal for debugging
+            println!("Failed to extend fs scope for {:?}: {}", path, e);
         }
 
         let is_dir = path.is_dir();
@@ -379,7 +396,14 @@ pub fn run() {
                 let data = state.data.lock().unwrap();
                 let scope = app.fs_scope();
                 for file in &data.files {
-                    let _ = scope.allow_file(Path::new(&file.path));
+                    let path = Path::new(&file.path);
+                    if path.exists() {
+                        if path.is_dir() {
+                            let _ = scope.allow_directory(path, true);
+                        } else {
+                            let _ = scope.allow_file(path);
+                        }
+                    }
                 }
             }
 
