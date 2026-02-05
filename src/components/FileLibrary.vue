@@ -721,6 +721,9 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
   padding: calc(2px * var(--card-scale)) calc(6px * var(--card-scale));
   border-radius: 4px;
   backdrop-filter: blur(4px);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  font-weight: 500;
+  border: 1px solid rgba(255,255,255,0.1); /* Subtle border */
 }
 
 .file-info-row {
@@ -739,10 +742,11 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 .tag-badge-small {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: min(calc(10px * var(--card-scale)), 12px);
-  padding: calc(1px * var(--card-scale)) calc(4px * var(--card-scale));
-  border-radius: 3px;
+  font-size: min(calc(11px * var(--card-scale)), 12px);
+  padding: calc(2px * var(--card-scale)) calc(8px * var(--card-scale));
+  border-radius: 999px; /* Pill shape */
   border: 1px solid var(--border-color);
+  font-weight: 500;
 }
 
 .grid-cover {

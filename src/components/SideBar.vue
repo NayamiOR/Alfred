@@ -580,12 +580,12 @@ onMounted(() => {
 }
 
 .add-lib-btn {
-  width: 100%;
+  width: auto;
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-  padding: 8px;
+  padding: 8px 16px;
   background: transparent;
   border: 1px dashed var(--border-color);
   border-radius: 6px;
@@ -594,6 +594,7 @@ onMounted(() => {
   font-size: 13px;
   transition: all 0.2s;
   text-decoration: none;
+  margin: 0 auto; /* Center it */
 }
 
 .add-lib-btn:hover {
