@@ -1,4 +1,6 @@
 mod models;
+#[cfg(target_os = "windows")]
+mod thumbnail;
 
 use chrono::Utc;
 use mime_guess::from_path;
@@ -377,6 +379,45 @@ fn copy_file_to_clipboard(path: String) -> Result<(), String> {
     }
 }
 
+#[tauri::command]
+async fn get_file_thumbnail(
+    file_id: String,
+    state: State<'_, AppState>,
+    app: tauri::AppHandle,
+) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let (input_path, thumbnail_path) = {
+            let data = state.data.lock().unwrap();
+            let file = data.files.iter().find(|f| f.id == file_id).ok_or("File not found")?;
+            let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
+            let thumb_dir = app_data_dir.join("thumbnails");
+            if !thumb_dir.exists() {
+                std::fs::create_dir_all(&thumb_dir).map_err(|e| e.to_string())?;
+            }
+            let thumb_path = thumb_dir.join(format!("{}.jpg", file_id));
+            (file.path.clone(), thumb_path)
+        };
+
+        if !thumbnail_path.exists() {
+            let input = input_path.clone();
+            let output = thumbnail_path.clone();
+            tauri::async_runtime::spawn_blocking(move || {
+                thumbnail::generate_thumbnail(Path::new(&input), &output, 320)
+            })
+            .await
+            .map_err(|e| e.to_string())??;
+        }
+
+        let _ = app.fs_scope().allow_file(&thumbnail_path);
+        Ok(thumbnail_path.to_string_lossy().to_string())
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        Err("Not supported on this OS".to_string())
+    }
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -404,6 +445,14 @@ pub fn run() {
                             let _ = scope.allow_file(path);
                         }
                     }
+                }
+                // Also allow the thumbnail directory
+                if let Ok(app_data_dir) = app.path().app_data_dir() {
+                    let thumb_dir = app_data_dir.join("thumbnails");
+                    if !thumb_dir.exists() {
+                        let _ = std::fs::create_dir_all(&thumb_dir);
+                    }
+                    let _ = scope.allow_directory(&thumb_dir, true);
                 }
             }
 
@@ -493,7 +542,8 @@ pub fn run() {
             detach_tag,
             open_file_default,
             show_in_explorer,
-            copy_file_to_clipboard
+            copy_file_to_clipboard,
+            get_file_thumbnail
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
