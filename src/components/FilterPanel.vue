@@ -279,26 +279,42 @@ h4 {
 }
 
 .checkbox-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   gap: 8px;
 }
 
 .filter-checkbox {
-  display: flex;
+  display: inline-flex;
   align-items: center;
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  padding: 4px 12px;
   font-size: 13px;
   cursor: pointer;
   user-select: none;
+  transition: all 0.2s ease;
+}
+
+.filter-checkbox:hover {
+  border-color: var(--text-secondary);
 }
 
 .filter-checkbox input {
-  margin-right: 8px;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.filter-checkbox:has(input:checked) {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-style: solid;
+  border-color: var(--text-primary);
 }
 
 .checkbox-label {
-  overflow: hidden;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

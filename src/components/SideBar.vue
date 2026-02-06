@@ -19,7 +19,7 @@
         
         <div class="checkbox-list">
           <!-- Untagged -->
-          <label class="filter-item">
+          <label class="filter-item untagged-filter">
             <input 
               type="checkbox" 
               :checked="isUntaggedSelected"
@@ -52,13 +52,13 @@
                     @contextmenu.prevent="showContextMenu($event, tag)"
                   >
                     <div class="tag-row-container" :class="{ 'dragging': isDraggingTag(tag.id) }">
-                      <span 
-                        class="tag-toggle"
-                        :class="{ 'hidden': !hasChildren(tag.id) }"
-                        @click.stop="toggleTagCollapse(tag.id)"
-                      >
-                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}
-                      </span>
+<!--                      <span -->
+<!--                        class="tag-toggle"-->
+<!--                        :class="{ 'hidden': !hasChildren(tag.id) }"-->
+<!--                        @click.stop="toggleTagCollapse(tag.id)"-->
+<!--                      >-->
+<!--                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}-->
+<!--                      </span>-->
                       <label class="filter-item">
                         <input 
                           type="checkbox" 
@@ -71,7 +71,7 @@
                   </div>
 
                   <!-- Children -->
-                  <div v-show="!collapsedTags.has(tag.id)">
+                  <div v-show="!collapsedTags.has(tag.id)" class="children-container">
                     <div 
                       v-for="child in getVisibleChildTags(tag.id)" 
                       :key="child.id" 
@@ -81,7 +81,7 @@
                       @contextmenu.prevent="showContextMenu($event, child)"
                     >
                       <div class="tag-row-container indent" :class="{ 'dragging': isDraggingTag(child.id) }">
-                        <span class="tag-toggle hidden"></span>
+<!--                        <span class="tag-toggle hidden"></span>-->
                         <label class="filter-item">
                           <input 
                             type="checkbox" 
@@ -117,13 +117,13 @@
                     @contextmenu.prevent="showContextMenu($event, tag)"
                   >
                     <div class="tag-row-container" :class="{ 'dragging': isDraggingTag(tag.id) }">
-                      <span 
-                        class="tag-toggle"
-                        :class="{ 'hidden': !hasChildren(tag.id) }"
-                        @click.stop="toggleTagCollapse(tag.id)"
-                      >
-                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}
-                      </span>
+<!--                      <span -->
+<!--                        class="tag-toggle"-->
+<!--                        :class="{ 'hidden': !hasChildren(tag.id) }"-->
+<!--                        @click.stop="toggleTagCollapse(tag.id)"-->
+<!--                      >-->
+<!--                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}-->
+<!--                      </span>-->
                       <label class="filter-item">
                         <input 
                           type="checkbox" 
@@ -135,7 +135,7 @@
                     </div>
                   </div>
                    <!-- Children of ungrouped -->
-                  <div v-show="!collapsedTags.has(tag.id)">
+                  <div v-show="!collapsedTags.has(tag.id)" class="children-container">
                     <div 
                       v-for="child in getVisibleChildTags(tag.id)" 
                       :key="child.id" 
@@ -145,7 +145,7 @@
                       @contextmenu.prevent="showContextMenu($event, child)"
                     >
                       <div class="tag-row-container indent" :class="{ 'dragging': isDraggingTag(child.id) }">
-                        <span class="tag-toggle hidden"></span>
+<!--                        <span class="tag-toggle hidden"></span>-->
                         <label class="filter-item">
                           <input 
                             type="checkbox" 
@@ -623,7 +623,7 @@ onMounted(() => {
 }
 
 .tag-row-container:hover {
-  background-color: var(--hover-color);
+  background-color: transparent;
 }
 
 .tag-row-container.dragging {
@@ -657,40 +657,71 @@ onMounted(() => {
 }
 
 .filter-item {
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  padding: 6px 10px 6px 0;
+  border: 1px dashed var(--border-color);
+  border-radius: 4px;
+  padding: 4px 12px;
+  margin: 2px;
   cursor: pointer;
+  user-select: none;
   font-size: 13px;
   color: var(--text-primary);
-  overflow: hidden;
-  flex: 1;
+  transition: all 0.2s;
+  background-color: var(--bg-secondary);
 }
 
-/* For standalone filter items without row container (e.g. untagged/select all) */
-.filter-item:not(.tag-row-container .filter-item) {
-  padding: 6px 10px;
-  border-radius: 6px;
+.filter-item:hover {
+  border-color: var(--text-primary);
 }
 
-.filter-item:not(.tag-row-container .filter-item):hover {
-  background-color: var(--hover-color);
+/* Selected state */
+.filter-item:has(input:checked) {
+  background: var(--text-primary);
+  color: var(--bg-primary);
+  border-style: solid;
+  border-color: var(--text-primary);
 }
 
 .filter-item input {
-  margin-right: 10px;
-  accent-color: var(--text-secondary);
-  cursor: pointer;
-  width: 14px;
-  height: 14px;
-  flex-shrink: 0;
+  position: absolute;
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.untagged-filter {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin-bottom: 8px;
+  box-sizing: border-box;
+}
+
+.group-items {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  align-items: flex-start;
+}
+
+.tag-wrapper {
+  display: inline-flex;
+}
+
+.child-tag {
+  display: inline-flex;
+}
+
+.children-container {
+  display: contents;
 }
 
 .filter-item span {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  flex: 1;
+  max-width: 100%;
 }
 
 .empty-msg {
@@ -702,8 +733,8 @@ onMounted(() => {
 }
 
 .untagged-label {
-  font-style: italic;
-  color: var(--text-secondary);
+  font-style: normal;
+  color: inherit;
 }
 
 .group-section {
