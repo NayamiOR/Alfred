@@ -6,64 +6,64 @@
 
     <!-- Search & Selection Status -->
     <div class="search-section">
-      <input 
-        v-model="searchQuery" 
-        :placeholder="t('sidebar.searchTags')" 
-        class="search-input"
+      <input
+          v-model="searchQuery"
+          :placeholder="t('sidebar.searchTags')"
+          class="search-input"
       />
     </div>
 
     <div class="library-list">
-      
+
       <div class="filter-group">
-        
+
         <div class="checkbox-list">
           <!-- Untagged -->
           <label class="filter-item untagged-filter">
-            <input 
-              type="checkbox" 
-              :checked="isUntaggedSelected"
-              @change="toggleUntagged"
+            <input
+                type="checkbox"
+                :checked="isUntaggedSelected"
+                @change="toggleUntagged"
             >
             <span class="untagged-label">{{ t('sidebar.untagged') }}</span>
           </label>
 
           <div v-if="libraryStore.tags.length === 0" class="empty-msg">{{ t('sidebar.noTags') }}</div>
-          
+
           <template v-else>
             <!-- Groups -->
-            <div 
-              v-for="group in filteredGroups" 
-              :key="group.id" 
-              class="group-section"
-              :data-group-id="group.id"
+            <div
+                v-for="group in filteredGroups"
+                :key="group.id"
+                class="group-section"
+                :data-group-id="group.id"
             >
               <div class="group-header" @click="toggleGroup(group.id)">
                 <span class="arrow">{{ collapsedGroups.has(group.id) ? '▶' : '▼' }}</span>
                 <span class="group-name">{{ group.name }}</span>
               </div>
-              
+
               <div v-show="!collapsedGroups.has(group.id)" class="group-items">
                 <template v-for="tag in getVisibleGroupTags(group.id)" :key="tag.id">
-                  <div 
-                    class="tag-wrapper"
-                    :data-tag-id="tag.id"
-                    @mousedown="onMouseDown(tag, $event)"
-                    @contextmenu.prevent="showContextMenu($event, tag)"
+                  <div
+                      class="tag-wrapper"
+                      :data-tag-id="tag.id"
+                      @mousedown="onMouseDown(tag, $event)"
+                      @contextmenu.prevent="showContextMenu($event, tag)"
                   >
                     <div class="tag-row-container" :class="{ 'dragging': isDraggingTag(tag.id) }">
-<!--                      <span -->
-<!--                        class="tag-toggle"-->
-<!--                        :class="{ 'hidden': !hasChildren(tag.id) }"-->
-<!--                        @click.stop="toggleTagCollapse(tag.id)"-->
-<!--                      >-->
-<!--                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}-->
-<!--                      </span>-->
+                      <!--                      <span -->
+                      <!--                        class="tag-toggle"-->
+                      <!--                        :class="{ 'hidden': !hasChildren(tag.id) }"-->
+                      <!--                        @click.stop="toggleTagCollapse(tag.id)"-->
+                      <!--                      >-->
+                      <!--                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}-->
+                      <!--                      </span>-->
                       <label class="filter-item">
-                        <input 
-                          type="checkbox" 
-                          :checked="isTagSelected(tag.id)"
-                          @change="toggleTag(tag.id)"
+                        <input
+                            type="checkbox"
+                            :checked="isTagSelected(tag.id)"
+                            @change="toggleTag(tag.id)"
                         >
                         <span>{{ tag.name }}</span>
                       </label>
@@ -72,21 +72,21 @@
 
                   <!-- Children -->
                   <div v-show="!collapsedTags.has(tag.id)" class="children-container">
-                    <div 
-                      v-for="child in getVisibleChildTags(tag.id)" 
-                      :key="child.id" 
-                      class="child-tag"
-                      :data-tag-id="child.id"
-                      @mousedown="onMouseDown(child, $event)"
-                      @contextmenu.prevent="showContextMenu($event, child)"
+                    <div
+                        v-for="child in getVisibleChildTags(tag.id)"
+                        :key="child.id"
+                        class="child-tag"
+                        :data-tag-id="child.id"
+                        @mousedown="onMouseDown(child, $event)"
+                        @contextmenu.prevent="showContextMenu($event, child)"
                     >
                       <div class="tag-row-container indent" :class="{ 'dragging': isDraggingTag(child.id) }">
-<!--                        <span class="tag-toggle hidden"></span>-->
+                        <!--                        <span class="tag-toggle hidden"></span>-->
                         <label class="filter-item">
-                          <input 
-                            type="checkbox" 
-                            :checked="isTagSelected(child.id)"
-                            @change="toggleTag(child.id)"
+                          <input
+                              type="checkbox"
+                              :checked="isTagSelected(child.id)"
+                              @change="toggleTag(child.id)"
                           >
                           <span>{{ child.name }}</span>
                         </label>
@@ -98,59 +98,59 @@
             </div>
 
             <!-- Ungrouped Root Tags -->
-            <div 
-              v-if="getVisibleUngroupedTags().length > 0" 
-              class="group-section"
-              data-group-id="ungrouped"
+            <div
+                v-if="getVisibleUngroupedTags().length > 0"
+                class="group-section"
+                data-group-id="ungrouped"
             >
-               <div class="group-header" @click="toggleGroup('ungrouped')">
+              <div class="group-header" @click="toggleGroup('ungrouped')">
                 <span class="arrow">{{ collapsedGroups.has('ungrouped') ? '▶' : '▼' }}</span>
                 <span class="group-name">{{ t('sidebar.otherTags') || 'Other' }}</span>
               </div>
 
               <div v-show="!collapsedGroups.has('ungrouped')" class="group-items">
                 <template v-for="tag in getVisibleUngroupedTags()" :key="tag.id">
-                  <div 
-                    class="tag-wrapper"
-                    :data-tag-id="tag.id"
-                    @mousedown="onMouseDown(tag, $event)"
-                    @contextmenu.prevent="showContextMenu($event, tag)"
+                  <div
+                      class="tag-wrapper"
+                      :data-tag-id="tag.id"
+                      @mousedown="onMouseDown(tag, $event)"
+                      @contextmenu.prevent="showContextMenu($event, tag)"
                   >
                     <div class="tag-row-container" :class="{ 'dragging': isDraggingTag(tag.id) }">
-<!--                      <span -->
-<!--                        class="tag-toggle"-->
-<!--                        :class="{ 'hidden': !hasChildren(tag.id) }"-->
-<!--                        @click.stop="toggleTagCollapse(tag.id)"-->
-<!--                      >-->
-<!--                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}-->
-<!--                      </span>-->
+                      <!--                      <span -->
+                      <!--                        class="tag-toggle"-->
+                      <!--                        :class="{ 'hidden': !hasChildren(tag.id) }"-->
+                      <!--                        @click.stop="toggleTagCollapse(tag.id)"-->
+                      <!--                      >-->
+                      <!--                        {{ collapsedTags.has(tag.id) ? '▶' : '▼' }}-->
+                      <!--                      </span>-->
                       <label class="filter-item">
-                        <input 
-                          type="checkbox" 
-                          :checked="isTagSelected(tag.id)"
-                          @change="toggleTag(tag.id)"
+                        <input
+                            type="checkbox"
+                            :checked="isTagSelected(tag.id)"
+                            @change="toggleTag(tag.id)"
                         >
                         <span>{{ tag.name }}</span>
                       </label>
                     </div>
                   </div>
-                   <!-- Children of ungrouped -->
+                  <!-- Children of ungrouped -->
                   <div v-show="!collapsedTags.has(tag.id)" class="children-container">
-                    <div 
-                      v-for="child in getVisibleChildTags(tag.id)" 
-                      :key="child.id" 
-                      class="child-tag"
-                      :data-tag-id="child.id"
-                      @mousedown="onMouseDown(child, $event)"
-                      @contextmenu.prevent="showContextMenu($event, child)"
+                    <div
+                        v-for="child in getVisibleChildTags(tag.id)"
+                        :key="child.id"
+                        class="child-tag"
+                        :data-tag-id="child.id"
+                        @mousedown="onMouseDown(child, $event)"
+                        @contextmenu.prevent="showContextMenu($event, child)"
                     >
                       <div class="tag-row-container indent" :class="{ 'dragging': isDraggingTag(child.id) }">
-<!--                        <span class="tag-toggle hidden"></span>-->
+                        <!--                        <span class="tag-toggle hidden"></span>-->
                         <label class="filter-item">
-                          <input 
-                            type="checkbox" 
-                            :checked="isTagSelected(child.id)"
-                            @change="toggleTag(child.id)"
+                          <input
+                              type="checkbox"
+                              :checked="isTagSelected(child.id)"
+                              @change="toggleTag(child.id)"
                           >
                           <span>{{ child.name }}</span>
                         </label>
@@ -172,35 +172,36 @@
         <span class="selection-label">{{ t('sidebar.selected') }}</span>
       </div>
       <button @click="clearSelection" class="clear-btn">
-        <v-icon name="md-close" scale="0.9" />
+        <v-icon name="md-close" scale="0.9"/>
         {{ t('sidebar.clear') }}
       </button>
     </div>
 
     <div class="sidebar-footer">
       <router-link to="/tags" class="add-lib-btn" :title="t('sidebar.manageTags')">
-        <v-icon name="co-settings" scale="0.8" /> {{ t('sidebar.manageTags') }}
+        <v-icon name="co-settings" scale="0.8"/>
+        {{ t('sidebar.manageTags') }}
       </router-link>
     </div>
 
     <!-- Context Menu -->
-    <ContextMenu 
-      :visible="contextMenu.visible" 
-      :position="contextMenu.position" 
-      :items="contextMenu.items"
-      @close="contextMenu.visible = false"
-      @action="handleMenuAction"
+    <ContextMenu
+        :visible="contextMenu.visible"
+        :position="contextMenu.position"
+        :items="contextMenu.items"
+        @close="contextMenu.visible = false"
+        @action="handleMenuAction"
     />
   </aside>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, reactive } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { libraryStore, actions, Tag } from '../stores/library';
+import {ref, computed, onMounted, reactive} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {libraryStore, actions, Tag} from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
 
-const { t } = useI18n();
+const {t} = useI18n();
 
 // Search & Filtering
 const searchQuery = ref('');
@@ -215,6 +216,7 @@ function toggleGroup(id: string) {
   }
 }
 
+/*
 function toggleTagCollapse(id: string) {
   if (collapsedTags.value.has(id)) {
     collapsedTags.value.delete(id);
@@ -227,21 +229,23 @@ function hasChildren(tagId: string) {
   return libraryStore.tags.some(t => t.parent_id === tagId);
 }
 
+ */
+
 // Filtered Data
 const filteredGroups = computed(() => {
   if (!searchQuery.value) return libraryStore.groups;
-  
+
   const query = searchQuery.value.toLowerCase();
   return libraryStore.groups.filter(g => {
     // Show group if name matches
     if (g.name.toLowerCase().includes(query)) return true;
-    
+
     // OR if any of its tags match
     const groupTags = libraryStore.tags.filter(t => t.group_id === g.id);
-    return groupTags.some(t => 
-      t.name.toLowerCase().includes(query) || 
-      // check children too
-      libraryStore.tags.some(child => child.parent_id === t.id && child.name.toLowerCase().includes(query))
+    return groupTags.some(t =>
+        t.name.toLowerCase().includes(query) ||
+        // check children too
+        libraryStore.tags.some(child => child.parent_id === t.id && child.name.toLowerCase().includes(query))
     );
   });
 });
@@ -265,16 +269,16 @@ function getVisibleUngroupedTags() {
 
   const query = searchQuery.value.toLowerCase();
   return tags.filter(t => {
-     if (t.name.toLowerCase().includes(query)) return true;
-     const children = libraryStore.tags.filter(c => c.parent_id === t.id);
-     return children.some(c => c.name.toLowerCase().includes(query));
+    if (t.name.toLowerCase().includes(query)) return true;
+    const children = libraryStore.tags.filter(c => c.parent_id === t.id);
+    return children.some(c => c.name.toLowerCase().includes(query));
   });
 }
 
 function getVisibleChildTags(parentId: string) {
   let tags = libraryStore.tags.filter(t => t.parent_id === parentId);
   if (!searchQuery.value) return tags;
-  
+
   const query = searchQuery.value.toLowerCase();
   return tags.filter(t => t.name.toLowerCase().includes(query));
 }
@@ -296,7 +300,7 @@ function toggleUntagged() {
 
 function toggleTag(id: string) {
   const selected = libraryStore.ui.tagViewFilters.tags;
-  
+
   if (selected.includes('_untagged_')) {
     libraryStore.ui.tagViewFilters.tags = [id];
     return;
@@ -319,7 +323,7 @@ const draggingTagId = ref<string | null>(null);
 const draggedTag = ref<Tag | null>(null);
 const dragPreview = ref<HTMLElement | null>(null);
 const isDragging = ref(false);
-const dragStartPos = ref({ x: 0, y: 0 });
+const dragStartPos = ref({x: 0, y: 0});
 const DRAG_THRESHOLD = 5;
 
 function isDraggingTag(id: string) {
@@ -332,8 +336,8 @@ function onMouseDown(tag: Tag, event: MouseEvent) {
 
   event.preventDefault();
 
-  dragStartPos.value = { x: event.clientX, y: event.clientY };
-  
+  dragStartPos.value = {x: event.clientX, y: event.clientY};
+
   // Store potential drag tag, but don't start dragging yet
   draggedTag.value = tag;
   draggingTagId.value = null; // Don't highlight yet
@@ -356,7 +360,7 @@ function onMouseMove(event: MouseEvent) {
 
   if (isDragging.value && dragPreview.value) {
     // Offset preview to bottom-right of cursor
-    const offset = 15; 
+    const offset = 15;
     const x = event.clientX + offset;
     const y = event.clientY + offset;
 
@@ -367,10 +371,10 @@ function onMouseMove(event: MouseEvent) {
 
 function startDragging(event: MouseEvent) {
   if (!draggedTag.value) return;
-  
+
   isDragging.value = true;
   draggingTagId.value = draggedTag.value.id;
-  
+
   // Set tag ID on window for FileLibrary to detect
   (window as any).__draggingTagId = draggedTag.value.id;
 
@@ -402,12 +406,12 @@ function createDragPreview(tag: Tag, x: number, y: number) {
   const preview = document.createElement('div');
   preview.className = 'drag-preview';
   preview.innerHTML = `<span>${tag.name}</span>`;
-  
+
   // Initial position at cursor offset
   const offset = 15;
   preview.style.left = (x + offset) + 'px';
   preview.style.top = (y + offset) + 'px';
-  
+
   document.body.appendChild(preview);
   dragPreview.value = preview;
 }
@@ -415,10 +419,10 @@ function createDragPreview(tag: Tag, x: number, y: number) {
 function handleDrop(x: number, y: number) {
   const targetElement = document.elementFromPoint(x, y);
   if (!targetElement || !draggedTag.value) return;
-  
+
   const groupSection = targetElement.closest('.group-section');
   // const tagWrapper = targetElement.closest('.tag-wrapper, .child-tag');
-  
+
   /* Nesting disabled temporarily
   if (tagWrapper) {
     const tagId = tagWrapper.getAttribute('data-tag-id');
@@ -428,8 +432,8 @@ function handleDrop(x: number, y: number) {
         actions.moveTag(draggedTag.value.id, targetTag.id, targetTag.group_id);
       }
     }
-  } else */ 
-  
+  } else */
+
   if (groupSection) {
     const groupId = groupSection.getAttribute('data-group-id');
     if (groupId === 'ungrouped') {
@@ -443,18 +447,18 @@ function handleDrop(x: number, y: number) {
 // Context Menu
 const contextMenu = reactive({
   visible: false,
-  position: { x: 0, y: 0 },
+  position: {x: 0, y: 0},
   items: [] as { label: string, action: string }[],
   targetTag: null as Tag | null
 });
 
 function showContextMenu(e: MouseEvent, tag: Tag) {
   contextMenu.visible = true;
-  contextMenu.position = { x: e.clientX, y: e.clientY };
+  contextMenu.position = {x: e.clientX, y: e.clientY};
   contextMenu.targetTag = tag;
   contextMenu.items = [
-    { label: t('tagManage.rename'), action: 'rename' },
-    { label: t('library.delete'), action: 'delete' }
+    {label: t('tagManage.rename'), action: 'rename'},
+    {label: t('library.delete'), action: 'delete'}
   ];
 }
 
@@ -469,7 +473,7 @@ async function handleMenuAction(action: string) {
     }
   } else if (action === 'delete') {
     // if (confirm(t('tagManage.delete') + '?')) {
-      await actions.deleteTag(tag.id);
+    await actions.deleteTag(tag.id);
     // }
   }
 }
@@ -790,7 +794,7 @@ onMounted(() => {
   gap: 6px;
   cursor: grabbing;
   /* Removed rotate for cleaner look, or keep slight tilt */
-  transform: rotate(2deg); 
+  transform: rotate(2deg);
   transition: transform 0.1s ease;
   white-space: nowrap; /* Prevent wrapping */
   max-width: 200px; /* Limit max width */
