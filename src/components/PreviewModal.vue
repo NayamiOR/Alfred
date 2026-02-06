@@ -36,20 +36,31 @@
       </div>
 
       <!-- Docx (Container) -->
-      <div v-else-if="isDocx" class="preview-docx" ref="docxContainer"></div>
+      <div v-else-if="isDocx" class="preview-docx" ref="docxContainer">
+        <!-- Loading state overlay for DOCX -->
+        <div v-if="loading" class="docx-loading-state">
+          <v-icon name="fa-spinner" animation="spin" scale="2" />
+          <span>{{ t('library.loading') }}</span>
+        </div>
+      </div>
 
       <!-- Xlsx (HTML) -->
       <div v-else-if="isXlsx" class="preview-xlsx" v-html="xlsxContent"></div>
 
       <!-- EPUB -->
-      <div v-else-if="isEpub" class="preview-epub">
+      <div v-else-if="isEpub" class="preview-epub" @wheel.prevent="handleEpubWheel">
+        <!-- Loading state overlay for EPUB -->
+        <div v-if="loading" class="epub-loading-state">
+          <v-icon name="fa-spinner" animation="spin" scale="2" />
+          <span>{{ t('library.loading') }}</span>
+        </div>
         <div class="epub-container" ref="epubContainer"></div>
         <div class="epub-controls">
           <button @click.stop="epubPrev" class="nav-btn prev" title="Previous Page">
-            <v-icon name="co-expand-right" scale="2" style="transform: rotate(180deg);" />
+            <v-icon name="co-caret-left" scale="2" />
           </button>
           <button @click.stop="epubNext" class="nav-btn next" title="Next Page">
-            <v-icon name="co-expand-right" scale="2" />
+            <v-icon name="co-caret-right" scale="2" />
           </button>
         </div>
       </div>
@@ -104,10 +115,15 @@ const xlsxContent = ref('');
 const docxContainer = ref<HTMLElement | null>(null);
 const epubContainer = ref<HTMLElement | null>(null);
 
+// Track if we're waiting for epubContainer to be available
+let waitingForEpubContainer = false;
+
 // Define types for epubjs internally since we can't import types easily in Vue SFC without issues sometimes
 interface Book {
   renderTo(element: HTMLElement | string, options?: any): Rendition;
   destroy(): void;
+  ready: Promise<void>;
+  locations: any;
 }
 interface Rendition {
   display(target?: string): Promise<void>;
@@ -118,6 +134,7 @@ interface Rendition {
 
 let epubBook: Book | null = null;
 let epubRendition: Rendition | null = null;
+let loadingEpubFile = ref<string | null>(null); // Track which file is currently loading
 
 const fileUrl = computed(() => {
 
@@ -164,8 +181,17 @@ watch(() => props.filePath, () => {
   }
 });
 
+// Watch epubContainer to trigger loading when it becomes available
+watch(epubContainer, (newVal) => {
+  if (newVal && waitingForEpubContainer && props.visible && isEpub.value) {
+    waitingForEpubContainer = false;
+    loadEpub();
+  }
+});
+
 onUnmounted(() => {
   destroyEpub();
+  waitingForEpubContainer = false;
 });
 
 function destroyEpub() {
@@ -174,15 +200,21 @@ function destroyEpub() {
     epubBook = null;
     epubRendition = null;
   }
+  loadingEpubFile.value = null; // Clear guard when destroyed
 }
 
 async function loadContent() {
   if (!props.filePath) return;
-  
+
   loading.value = false;
   error.value = null;
   textContent.value = '';
   xlsxContent.value = '';
+
+  // Clear EPUB loading guard if switching to non-EPUB file
+  if (!isEpub.value) {
+    loadingEpubFile.value = null;
+  }
 
   if (isImage.value || isVideo.value) return; // Native handling via URL
 
@@ -212,7 +244,13 @@ async function loadContent() {
       const worksheet = workbook.Sheets[firstSheetName];
       xlsxContent.value = XLSX.utils.sheet_to_html(worksheet, { id: 'excel-table' });
     } else if (isEpub.value) {
-      await loadEpub();
+      // Check if epubContainer is available
+      if (epubContainer.value) {
+        await loadEpub();
+      } else {
+        // Container not ready yet, set flag and wait for watcher
+        waitingForEpubContainer = true;
+      }
     }
   } catch (e) {
     console.error('Failed to load preview:', e);
@@ -223,25 +261,100 @@ async function loadContent() {
 }
 
 async function loadEpub() {
+  // This function should only be called when epubContainer.value is guaranteed to exist
+  if (!epubContainer.value) {
+    console.error('EPUB container not available');
+    return;
+  }
+
+  // Prevent loading if modal is not visible
+  if (!props.visible) {
+    console.log('EPUB load aborted: modal not visible');
+    return;
+  }
+
+  // Prevent concurrent loadEpub calls
+  if (loadingEpubFile.value === props.filePath) {
+    console.log('EPUB load already in progress for:', props.filePath);
+    return;
+  }
+
   destroyEpub();
-  
-  await nextTick();
-  if (!epubContainer.value) return;
 
-  epubBook = Epub(convertFileSrc(props.filePath!));
-  
-  epubRendition = epubBook.renderTo(epubContainer.value, {
-    width: '100%',
-    height: '100%',
-    flow: 'paginated'
+  // Log container dimensions for debugging
+  const containerRect = epubContainer.value.getBoundingClientRect();
+  console.log('EPUB container dimensions:', {
+    width: containerRect.width,
+    height: containerRect.height,
+    hasDimensions: containerRect.width > 0 && containerRect.height > 0
   });
 
-  await epubRendition.display();
-  
-  // Hook for location update if needed
-  epubRendition.on('relocated', (_location: any) => {
-    // console.log(location);
-  });
+  // If container has no dimensions, wait a bit for DOM to settle
+  if (containerRect.width === 0 || containerRect.height === 0) {
+    console.warn('EPUB container has no dimensions, waiting...');
+    await new Promise(resolve => setTimeout(resolve, 100));
+  }
+
+  try {
+    // Check again before proceeding (modal might have closed during ticks)
+    if (!props.visible || !epubContainer.value) {
+      console.log('EPUB load aborted: modal closed or container missing');
+      loadingEpubFile.value = null;
+      return;
+    }
+
+    loadingEpubFile.value = props.filePath!; // Set guard to prevent concurrent loads
+    console.log('Loading EPUB from file:', props.filePath);
+
+    // Read file as ArrayBuffer to avoid Tauri protocol issues with epubjs
+    const data = await readFile(props.filePath!);
+    console.log('EPUB file read, size:', data.byteLength);
+
+    // Check once more after async file read
+    if (!props.visible || !epubContainer.value) {
+      console.log('EPUB load aborted: modal closed or container missing after file read');
+      loadingEpubFile.value = null;
+      return;
+    }
+
+    // Create book instance from ArrayBuffer
+    epubBook = Epub(data.buffer);
+
+    // Wait for book to be ready before rendering
+    await epubBook.ready;
+    console.log('EPUB book is ready');
+
+    // Create rendition
+    epubRendition = epubBook.renderTo(epubContainer.value, {
+      width: '100%',
+      height: '100%',
+      flow: 'paginated'
+    });
+
+    // Display first page
+    await epubRendition.display();
+    console.log('EPUB rendition displayed');
+
+    // Add wheel event listener to iframe for scrolling through pages
+    epubRendition.on('rendered', () => {
+      const iframe = epubContainer.value?.querySelector('iframe');
+      if (iframe?.contentWindow) {
+        iframe.contentWindow.addEventListener('wheel', (e: WheelEvent) => {
+          e.preventDefault();
+          handleEpubWheel(e);
+        }, { passive: false });
+      }
+    });
+
+    // Hook for location update if needed
+    epubRendition.on('relocated', (_location: any) => {
+      // console.log(location);
+    });
+  } catch (e) {
+    console.error('Failed to load EPUB:', e);
+    error.value = t('library.previewFailed') || 'Failed to load EPUB preview';
+    loadingEpubFile.value = null; // Clear guard on error
+  }
 }
 
 function epubPrev() {
@@ -250,6 +363,18 @@ function epubPrev() {
 
 function epubNext() {
   if (epubRendition) epubRendition.next();
+}
+
+function handleEpubWheel(e: WheelEvent) {
+  if (!epubRendition) return;
+  
+  // deltaY > 0 means scroll down → next page
+  // deltaY < 0 means scroll up → prev page
+  if (e.deltaY > 0) {
+    epubRendition.next();
+  } else if (e.deltaY < 0) {
+    epubRendition.prev();
+  }
 }
 </script>
 
@@ -325,6 +450,24 @@ function epubNext() {
   padding: 20px;
   background: white;
   color: black; /* Ensure black text */
+  position: relative; /* For loading overlay positioning */
+}
+
+.docx-loading-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 10;
+  color: var(--text-primary);
 }
 
 .preview-xlsx {
@@ -437,6 +580,23 @@ function epubNext() {
 .epub-container {
   width: 100%;
   height: 100%;
+}
+
+.epub-loading-state {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(255, 255, 255, 0.95);
+  padding: 40px;
+  border-radius: 12px;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  z-index: 10;
+  color: var(--text-primary);
 }
 
 .epub-controls {

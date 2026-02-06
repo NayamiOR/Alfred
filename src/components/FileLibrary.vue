@@ -569,6 +569,11 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeyDown);
+  // Clear preview debounce timer if exists
+  if (previewDebounceTimer) {
+    clearTimeout(previewDebounceTimer);
+    previewDebounceTimer = null;
+  }
 });
 
 // Context Menu
@@ -679,13 +684,26 @@ const preview = reactive({
   file: null as FileItem | null
 });
 
+// Preview debounce timer to prevent rapid opening/closing
+let previewDebounceTimer: number | null = null;
+
 function openFile(file: FileItem | null) {
   if (file) actions.openFile(file.path);
 }
 
 function openPreview(file: FileItem) {
-  preview.file = file;
-  preview.visible = true;
+  // Clear any existing timer
+  if (previewDebounceTimer) {
+    clearTimeout(previewDebounceTimer);
+    previewDebounceTimer = null;
+  }
+
+  // Debounce preview opening to prevent rapid switching
+  previewDebounceTimer = window.setTimeout(() => {
+    preview.file = file;
+    preview.visible = true;
+    previewDebounceTimer = null;
+  }, 150); // 150ms delay
 }
 
 function onDragOver(e: DragEvent) {

@@ -29,6 +29,7 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { FileItem, libraryStore } from '../stores/library';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import { readFile } from '@tauri-apps/plugin-fs';
 import * as pdfjsLib from 'pdfjs-dist';
 import Epub from 'epubjs';
 
@@ -88,9 +89,10 @@ async function generatePdfThumbnail(filePath: string): Promise<string> {
 }
 
 async function generateEpubThumbnail(filePath: string): Promise<string> {
-  const url = convertFileSrc(filePath);
-  const book = Epub(url);
-  
+  // Read file as ArrayBuffer to avoid Tauri protocol issues with epubjs
+  const data = await readFile(filePath);
+  const book = Epub(data.buffer);
+
   try {
     await book.ready;
     const coverUrl = await book.coverUrl();

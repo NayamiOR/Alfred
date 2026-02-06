@@ -7,7 +7,7 @@
     @dragleave.prevent="handleDragLeave"
     @drop.prevent="handleDrop"
   >
-    <TopBar :current-route="($route.name as string)" />
+    <TopBar :current-route="($route.name || 'Library') as string" />
     <ShortcutBar @toggle-dark-mode="toggleDarkMode" :is-dark-mode="isDarkMode" />
     <main class="content-area">
       <router-view />

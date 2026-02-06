@@ -21,7 +21,9 @@ import {
     FcFile,
     FcImageFile,
     PxArchive, FcFolder, FcDocument,
-    FaSpinner
+    FaSpinner,
+    CoCaretLeft,
+    CoCaretRight
 } from "oh-vue-icons/icons";
 
 const app = createApp(App);
@@ -30,7 +32,7 @@ addIcons(
     PxArchive, CoSearch, CoHamburgerMenu, CoInbox, CoSettings, 
     CoTags, CoSun, CoMoon, CoExpandRight, CoPlus, CoCheck, CoWarning, CoInfo,
     FcVideoFile, FcAudioFile, FcFile, FcImageFile, FcFolder, FcDocument,
-    FaSpinner
+    FaSpinner, CoCaretLeft, CoCaretRight
 )
 
 app.use(router);
