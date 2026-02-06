@@ -87,6 +87,8 @@ export default {
     contextEditTagsMulti: '编辑标签 ({n} 个项目)...',
     previewNotAvailable: '预览不可用',
     openFile: '打开文件',
+    loading: '加载中...',
+    previewFailed: '加载预览失败',
     notify: {
       addedFiles: '成功添加 {count} 个文件',
       deletedFiles: '删除 {count} 个文件',

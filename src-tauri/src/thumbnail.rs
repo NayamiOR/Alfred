@@ -1,11 +1,70 @@
 use image::{ImageBuffer, Rgba};
+use pdfium_render::prelude::*;
 use std::path::Path;
+#[cfg(target_os = "windows")]
 use windows::{
     core::*, Win32::Foundation::*, Win32::Graphics::Gdi::*, Win32::System::Com::*,
     Win32::UI::Shell::*,
 };
 
 pub fn generate_thumbnail(
+    input_path: &Path,
+    output_path: &Path,
+    max_size: u32,
+) -> std::result::Result<(), String> {
+    let extension = input_path
+        .extension()
+        .unwrap_or_default()
+        .to_string_lossy()
+        .to_lowercase();
+
+    match extension.as_str() {
+        "pdf" => generate_pdf_thumbnail(input_path, output_path, max_size),
+        _ => generate_system_thumbnail(input_path, output_path, max_size),
+    }
+}
+
+fn generate_pdf_thumbnail(
+    input_path: &Path,
+    output_path: &Path,
+    max_size: u32,
+) -> std::result::Result<(), String> {
+    // Initialize Pdfium
+    let pdfium = Pdfium::new(
+        Pdfium::bind_to_library(Pdfium::pdfium_platform_library_name_at_path("./"))
+            .or_else(|_| Pdfium::bind_to_system_library())
+            .map_err(|e| format!("Failed to bind to Pdfium: {}", e))?,
+    );
+
+    let document = pdfium
+        .load_pdf_from_file(input_path, None)
+        .map_err(|e| format!("Failed to load PDF: {}", e))?;
+
+    let page = document
+        .pages()
+        .get(0)
+        .map_err(|e| format!("Failed to get first page: {}", e))?;
+
+    // Render page to bitmap
+    let bitmap = page
+        .render_with_config(
+            &PdfRenderConfig::new()
+                .set_target_width((max_size as u16).into())
+                .set_target_height((max_size as u16).into())
+                .rotate_if_landscape(PdfPageRenderRotation::None, true),
+        )
+        .map_err(|e| format!("Failed to render page: {}", e))?;
+
+    // Convert to DynamicImage
+    let img = bitmap.as_image(); // returns DynamicImage directly
+
+    // Save directly (it is already resized by render_with_config)
+    img.save(output_path)
+        .map_err(|e| format!("Failed to save thumbnail: {}", e))
+}
+
+#[cfg(target_os = "windows")]
+fn generate_system_thumbnail(
     input_path: &Path,
     output_path: &Path,
     max_size: u32,
@@ -36,7 +95,7 @@ pub fn generate_thumbnail(
         let image = hbitmap_to_image(hbitmap)?;
 
         // Cleanup HBITMAP
-        DeleteObject(hbitmap);
+        let _ = DeleteObject(hbitmap);
 
         // Save
         image
@@ -47,6 +106,16 @@ pub fn generate_thumbnail(
     }
 }
 
+#[cfg(not(target_os = "windows"))]
+fn generate_system_thumbnail(
+    _input_path: &Path,
+    _output_path: &Path,
+    _max_size: u32,
+) -> std::result::Result<(), String> {
+    Err("System thumbnail generation not supported on this OS".to_string())
+}
+
+#[cfg(target_os = "windows")]
 unsafe fn hbitmap_to_image(hbitmap: HBITMAP) -> std::result::Result<image::DynamicImage, String> {
     let hdc = CreateCompatibleDC(None);
     if hdc.is_invalid() {
@@ -62,7 +131,7 @@ unsafe fn hbitmap_to_image(hbitmap: HBITMAP) -> std::result::Result<image::Dynam
         Some(&mut bitmap_info as *mut _ as *mut _),
     ) == 0
     {
-        DeleteDC(hdc);
+        let _ = DeleteDC(hdc);
         return Err("Failed to get bitmap info".to_string());
     }
 
@@ -95,11 +164,11 @@ unsafe fn hbitmap_to_image(hbitmap: HBITMAP) -> std::result::Result<image::Dynam
         DIB_RGB_COLORS,
     ) == 0
     {
-        DeleteDC(hdc);
+        let _ = DeleteDC(hdc);
         return Err("Failed to get DIB bits".to_string());
     }
 
-    DeleteDC(hdc);
+    let _ = DeleteDC(hdc);
 
     // Pixels are BGRA, convert to RGBA
     for chunk in pixels.chunks_mut(4) {

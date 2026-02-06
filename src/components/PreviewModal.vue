@@ -4,8 +4,8 @@
       
       <!-- Loading State -->
       <div v-if="loading" class="loading-state">
-        <v-icon name="pi-spinner" animation="spin" scale="2" />
-        <span>{{ t('library.loading') || 'Loading...' }}</span>
+        <v-icon name="fa-spinner" animation="spin" scale="2" />
+        <span>{{ t('library.loading') }}</span>
       </div>
 
       <!-- Error State -->
@@ -41,6 +41,19 @@
       <!-- Xlsx (HTML) -->
       <div v-else-if="isXlsx" class="preview-xlsx" v-html="xlsxContent"></div>
 
+      <!-- EPUB -->
+      <div v-else-if="isEpub" class="preview-epub">
+        <div class="epub-container" ref="epubContainer"></div>
+        <div class="epub-controls">
+          <button @click.stop="epubPrev" class="nav-btn prev" title="Previous Page">
+            <v-icon name="co-expand-right" scale="2" style="transform: rotate(180deg);" />
+          </button>
+          <button @click.stop="epubNext" class="nav-btn next" title="Next Page">
+            <v-icon name="co-expand-right" scale="2" />
+          </button>
+        </div>
+      </div>
+
       <!-- Generic Fallback -->
       <div v-else class="preview-generic">
         <div class="icon">
@@ -58,12 +71,13 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue';
+import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { readFile, readTextFile } from '@tauri-apps/plugin-fs';
 import { renderAsync } from 'docx-preview';
 import * as XLSX from 'xlsx';
+import Epub from 'epubjs';
 
 const { t } = useI18n();
 
@@ -88,8 +102,25 @@ const error = ref<string | null>(null);
 const textContent = ref('');
 const xlsxContent = ref('');
 const docxContainer = ref<HTMLElement | null>(null);
+const epubContainer = ref<HTMLElement | null>(null);
+
+// Define types for epubjs internally since we can't import types easily in Vue SFC without issues sometimes
+interface Book {
+  renderTo(element: HTMLElement | string, options?: any): Rendition;
+  destroy(): void;
+}
+interface Rendition {
+  display(target?: string): Promise<void>;
+  prev(): void;
+  next(): void;
+  on(event: string, cb: Function): void;
+}
+
+let epubBook: Book | null = null;
+let epubRendition: Rendition | null = null;
 
 const fileUrl = computed(() => {
+
   return props.filePath ? convertFileSrc(props.filePath) : '';
 });
 
@@ -105,6 +136,7 @@ const isPdf = computed(() => props.fileType.toLowerCase() === 'pdf');
 
 const isDocx = computed(() => props.fileType.toLowerCase() === 'docx');
 const isXlsx = computed(() => ['xls', 'xlsx', 'csv'].includes(props.fileType.toLowerCase()));
+const isEpub = computed(() => props.fileType.toLowerCase() === 'epub');
 
 const isText = computed(() => ['txt', 'md', 'markdown', 'log', 'ini', 'conf', 'cfg'].includes(props.fileType.toLowerCase()));
 const isCode = computed(() => ['json', 'xml', 'html', 'css', 'js', 'ts', 'vue', 'rs', 'py', 'java', 'c', 'cpp', 'h', 'sh', 'bat', 'cmd', 'ps1', 'yaml', 'yml', 'toml'].includes(props.fileType.toLowerCase()));
@@ -122,6 +154,7 @@ watch(() => props.visible, (val) => {
     textContent.value = '';
     xlsxContent.value = '';
     error.value = null;
+    destroyEpub();
   }
 });
 
@@ -130,6 +163,18 @@ watch(() => props.filePath, () => {
     loadContent();
   }
 });
+
+onUnmounted(() => {
+  destroyEpub();
+});
+
+function destroyEpub() {
+  if (epubBook) {
+    epubBook.destroy();
+    epubBook = null;
+    epubRendition = null;
+  }
+}
 
 async function loadContent() {
   if (!props.filePath) return;
@@ -166,6 +211,8 @@ async function loadContent() {
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
       xlsxContent.value = XLSX.utils.sheet_to_html(worksheet, { id: 'excel-table' });
+    } else if (isEpub.value) {
+      await loadEpub();
     }
   } catch (e) {
     console.error('Failed to load preview:', e);
@@ -173,6 +220,36 @@ async function loadContent() {
   } finally {
     loading.value = false;
   }
+}
+
+async function loadEpub() {
+  destroyEpub();
+  
+  await nextTick();
+  if (!epubContainer.value) return;
+
+  epubBook = Epub(convertFileSrc(props.filePath!));
+  
+  epubRendition = epubBook.renderTo(epubContainer.value, {
+    width: '100%',
+    height: '100%',
+    flow: 'paginated'
+  });
+
+  await epubRendition.display();
+  
+  // Hook for location update if needed
+  epubRendition.on('relocated', (_location: any) => {
+    // console.log(location);
+  });
+}
+
+function epubPrev() {
+  if (epubRendition) epubRendition.prev();
+}
+
+function epubNext() {
+  if (epubRendition) epubRendition.next();
 }
 </script>
 
@@ -347,6 +424,50 @@ async function loadContent() {
 
 .close-btn:hover {
   background: rgba(255, 255, 255, 0.4);
+}
+
+.preview-epub {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  background: white;
+  overflow: hidden;
+}
+
+.epub-container {
+  width: 100%;
+  height: 100%;
+}
+
+.epub-controls {
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  transform: translateY(-50%);
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  pointer-events: none;
+}
+
+.nav-btn {
+  background: rgba(0, 0, 0, 0.3);
+  color: white;
+  border: none;
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  pointer-events: auto;
+  transition: background 0.2s;
+}
+
+.nav-btn:hover {
+  background: rgba(0, 0, 0, 0.6);
 }
 </style>
 

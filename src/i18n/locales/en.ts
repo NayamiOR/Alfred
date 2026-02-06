@@ -87,6 +87,8 @@ export default {
     contextEditTagsMulti: 'Edit Tags ({n} items)...',
     previewNotAvailable: 'Preview not available',
     openFile: 'Open File',
+    loading: 'Loading...',
+    previewFailed: 'Failed to load preview',
     notify: {
       addedFiles: 'Successfully added {count} file(s)',
       deletedFiles: 'Deleted {count} file(s)',

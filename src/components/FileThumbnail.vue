@@ -29,6 +29,12 @@
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
 import { FileItem, libraryStore } from '../stores/library';
 import { convertFileSrc, invoke } from '@tauri-apps/api/core';
+import * as pdfjsLib from 'pdfjs-dist';
+import Epub from 'epubjs';
+
+// Set up PDF.js worker
+import pdfWorker from 'pdfjs-dist/build/pdf.worker?url';
+pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const props = defineProps<{
   file: FileItem;
@@ -52,11 +58,86 @@ function onError() {
   loading.value = false;
 }
 
+async function generatePdfThumbnail(filePath: string): Promise<string> {
+  const url = convertFileSrc(filePath);
+  const loadingTask = pdfjsLib.getDocument(url);
+  const pdf = await loadingTask.promise;
+  const page = await pdf.getPage(1);
+  
+  const viewport = page.getViewport({ scale: 1 });
+  const canvas = document.createElement('canvas');
+  const context = canvas.getContext('2d');
+  
+  // Calculate scale to fit 320px (matches backend logic)
+  const MAX_SIZE = 320;
+  const scale = Math.min(MAX_SIZE / viewport.width, MAX_SIZE / viewport.height);
+  const scaledViewport = page.getViewport({ scale });
+
+  canvas.width = scaledViewport.width;
+  canvas.height = scaledViewport.height;
+
+  if (!context) throw new Error('Canvas context not available');
+
+  await page.render({
+    canvasContext: context,
+    viewport: scaledViewport,
+    canvas: null
+  }).promise;
+
+  return canvas.toDataURL('image/jpeg', 0.8);
+}
+
+async function generateEpubThumbnail(filePath: string): Promise<string> {
+  const url = convertFileSrc(filePath);
+  const book = Epub(url);
+  
+  try {
+    await book.ready;
+    const coverUrl = await book.coverUrl();
+    if (coverUrl) {
+      return coverUrl;
+    }
+    throw new Error("No cover found");
+  } finally {
+    if (book && typeof book.destroy === 'function') {
+      book.destroy();
+    }
+  }
+}
+
 async function loadThumbnail() {
   if (loading.value || thumbnailUrl.value || error.value) return;
   
   if (props.file.mime_type.startsWith('image/')) {
     thumbnailUrl.value = convertFileSrc(props.file.path);
+    return;
+  }
+
+  // Handle PDF on frontend
+  if (props.file.extension.toLowerCase() === 'pdf') {
+    loading.value = true;
+    try {
+      thumbnailUrl.value = await generatePdfThumbnail(props.file.path);
+    } catch (e) {
+      console.error('Failed to generate PDF thumbnail:', e);
+      error.value = true;
+    } finally {
+      loading.value = false;
+    }
+    return;
+  }
+
+  // Handle EPUB on frontend
+  if (props.file.extension.toLowerCase() === 'epub') {
+    loading.value = true;
+    try {
+      thumbnailUrl.value = await generateEpubThumbnail(props.file.path);
+    } catch (e) {
+      console.error('Failed to generate EPUB thumbnail:', e);
+      error.value = true;
+    } finally {
+      loading.value = false;
+    }
     return;
   }
 
@@ -71,7 +152,7 @@ async function loadThumbnail() {
     const path = await invoke<string>('get_file_thumbnail', { fileId: props.file.id });
     thumbnailUrl.value = convertFileSrc(path);
   } catch (e) {
-    console.error('Failed to load thumbnail:', e);
+    // console.error('Failed to load thumbnail:', e);
     error.value = true;
   } finally {
     loading.value = false;

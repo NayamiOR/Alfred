@@ -280,11 +280,4 @@ impl AppState {
             file_path,
         }
     }
-
-    pub fn save(&self) {
-        let data = self.data.lock().unwrap();
-        if let Ok(content) = serde_json::to_string_pretty(&*data) {
-            let _ = fs::write(&self.file_path, content);
-        }
-    }
 }
