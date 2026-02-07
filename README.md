@@ -1,5 +1,7 @@
 # Alfred
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 一个基于 Tauri + Vue 3 构建的高性能桌面文件管理应用，专注于提供结构化的文件组织与多维度的检索体验。
 
 <!-- TODO: 添加应用主界面截图，推荐路径：docs/screenshots/main-ui.png -->
@@ -99,6 +101,10 @@
 ## 🤝 贡献
 
 我们欢迎任何形式的贡献！在提交 Pull Request 之前，请先阅读 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+## 📄 许可证
+
+本项目基于 [Apache License 2.0](./LICENSE) 开源。
 
 <!-- TODO: 添加更多功能演示截图或 GIF -->
 
