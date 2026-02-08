@@ -193,6 +193,8 @@ export const actions = {
     try {
       await invoke('delete_files', { ids });
       libraryStore.files = libraryStore.files.filter(f => !ids.includes(f.id));
+      // Clean up selectedFileIds to remove deleted files
+      libraryStore.ui.selectedFileIds = libraryStore.ui.selectedFileIds.filter(id => !ids.includes(id));
       notify(t('library.notify.deletedFiles', { count: ids.length }), 'success');
     } catch (error) {
       console.error('Failed to delete files:', error);

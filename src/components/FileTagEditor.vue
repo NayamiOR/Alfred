@@ -43,6 +43,11 @@
             {{ tag.name }}
           </div>
         </div>
+        
+        <!-- Error Message -->
+        <div v-if="errorMessage" class="error-message">
+          {{ errorMessage }}
+        </div>
       </div>
     </div>
   </div>
@@ -63,6 +68,7 @@ const inputRef = ref<HTMLInputElement | null>(null);
 const inputValue = ref('');
 const showSuggestions = ref(false);
 const highlightedIndex = ref(0);
+const errorMessage = ref('');
 
 // Track file's tags locally
 const fileTags = computed(() => props.file.tag_ids);
@@ -120,6 +126,35 @@ async function removeTag(tagId: string) {
   await actions.detachTag(props.file.id, tagId);
 }
 
+async function createAndAddTag(name: string) {
+  // Validation: no spaces allowed
+  if (name.includes(' ')) {
+    errorMessage.value = t('tagManage.noSpacesAllowed') || 'Tag name cannot contain spaces';
+    return;
+  }
+  // Minimum 1 character (already trimmed by caller)
+  if (name.length < 1) return;
+  
+  // Clear any previous error
+  errorMessage.value = '';
+  
+  try {
+    // Create tag with null parent and null group (default/ungrouped)
+    const newTag = await actions.createTag(name, null, null);
+    if (newTag) {
+      await actions.attachTag(props.file.id, newTag.id);
+      inputValue.value = '';
+      showSuggestions.value = false;
+      highlightedIndex.value = 0;
+      nextTick(() => inputRef.value?.focus());
+    }
+    // If newTag is null, createTag already showed an error notification
+  } catch (error) {
+    errorMessage.value = String(error);
+    // Keep input content for retry
+  }
+}
+
 function onKeyDown(event: KeyboardEvent) {
   // Ctrl+Enter: Save/Confirm (though we auto-save, this closes/blurs)
   if (event.ctrlKey && event.key === 'Enter') {
@@ -129,14 +164,18 @@ function onKeyDown(event: KeyboardEvent) {
     return;
   }
   
-  // Enter: Add highlighted or first suggestion
+  // Enter: Add highlighted or first suggestion, or create new tag
   if (event.key === 'Enter') {
     event.preventDefault();
     if (filteredTags.value.length > 0 && showSuggestions.value) {
+      // Add existing tag from suggestions
       const tagToAdd = filteredTags.value[highlightedIndex.value] || filteredTags.value[0];
       if (tagToAdd) {
         addTag(tagToAdd.id);
       }
+    } else if (inputValue.value.trim()) {
+      // No match - create new tag
+      createAndAddTag(inputValue.value.trim());
     }
     return;
   }
@@ -294,5 +333,20 @@ function onKeyDown(event: KeyboardEvent) {
 .suggestion-item:hover,
 .suggestion-item.highlighted {
   background-color: var(--hover-color);
+}
+
+.error-message {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #ef4444;
+  background-color: var(--bg-primary);
+  border: 1px solid #ef4444;
+  border-radius: 4px;
+  z-index: 101;
 }
 </style>

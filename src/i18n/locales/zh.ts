@@ -43,7 +43,9 @@ export default {
     addTag: '新建标签',
     duplicateGroupError: '分组名称已存在',
     deleteGroupTitle: '删除分组',
-    deleteGroupMessage: '确定要删除此分组吗？其中的标签将变为未分组状态。'
+    deleteGroupMessage: '确定要删除此分组吗？其中的标签将变为未分组状态。',
+    noSpacesAllowed: '标签名称不能包含空格',
+    tagInputPlaceholder: '添加标签...'
   },
   shortcutBar: {
     resourceLibrary: '文件库',
