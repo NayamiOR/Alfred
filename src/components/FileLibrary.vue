@@ -36,7 +36,7 @@
         <div
           v-for="(file, index) in filteredFiles"
           :key="file.id"
-          :class="['file-item', { 'grid-item': libraryStore.ui.isGridView, 'list-item': !libraryStore.ui.isGridView, 'selected': selectedFileIds.has(file.id) }]"
+          :class="['file-item', { 'grid-item': libraryStore.ui.isGridView, 'list-item': !libraryStore.ui.isGridView, 'selected': libraryStore.ui.selectedFileIds.includes(file.id) }]"
           :data-id="file.id"
           @click.stop="selectFile(file, index, $event)"
           @dblclick.stop="openFile(file)"
@@ -79,6 +79,17 @@
       </div>
     </div>
 
+    <!-- Clear Selection Button -->
+    <transition name="fade">
+      <button 
+        v-if="libraryStore.ui.selectedFileIds.length > 0"
+        class="clear-selection-btn"
+        @click="clearSelection"
+      >
+        {{ t('library.clearSelection') }}
+      </button>
+    </transition>
+
     <!-- Context Menu -->
     <ContextMenu 
       :visible="contextMenu.visible" 
@@ -101,21 +112,15 @@
 
     <!-- Tag Input Modal -->
     <div v-if="showTagInput" class="modal-backdrop" @click="showTagInput = false">
-      <div class="modal" @click.stop>
+      <div class="modal modal-wide" @click.stop>
         <h3>{{ targetFilesForTags.length > 1 ? t('library.editTagsMulti', { n: targetFilesForTags.length }) : t('library.editTags') }}</h3>
-        <div class="current-tags">
-          <span v-for="tagId in displayedTags" :key="tagId" class="tag-chip">
-            {{ getTagName(tagId) }}
-            <button @click="removeTag(tagId)" class="remove-tag">×</button>
-          </span>
+        <div class="files-editor-list">
+          <FileTagEditor 
+            v-for="file in targetFilesForTags" 
+            :key="file.id" 
+            :file="file" 
+          />
         </div>
-        <input 
-          v-model="newTagValue" 
-          @keydown.enter="addTag"
-          :placeholder="t('library.tagInputPlaceholder')"
-          class="tag-input"
-          autofocus
-        />
         <div class="modal-actions">
           <button @click="showTagInput = false" class="close-btn">{{ t('library.done') }}</button>
         </div>
@@ -132,6 +137,7 @@ import ContextMenu from './ContextMenu.vue';
 import FilterPanel from './FilterPanel.vue';
 import PreviewModal from './PreviewModal.vue';
 import FileThumbnail from './FileThumbnail.vue';
+import FileTagEditor from './FileTagEditor.vue';
 
 const { t } = useI18n();
 
@@ -142,7 +148,13 @@ function getTagColor(tagId: string) {
   return group?.color || undefined;
 }
 
-const selectedFileIds = ref<Set<string>>(new Set());
+// Use store state for selection - sync with libraryStore.ui.selectedFileIds
+const selectedFileIds = computed({
+  get: () => new Set(libraryStore.ui.selectedFileIds),
+  set: (val: Set<string>) => {
+    libraryStore.ui.selectedFileIds = Array.from(val);
+  }
+});
 const lastSelectedId = ref<string | null>(null);
 
 // Selection Rectangle Logic
@@ -255,6 +267,8 @@ function updateSelection() {
   const scrollTop = fileContainerRef.value.scrollTop;
   const scrollLeft = fileContainerRef.value.scrollLeft;
   
+  const newSelection = new Set(libraryStore.ui.selectedFileIds);
+  
   items.forEach((item, index) => {
     const itemRect = item.getBoundingClientRect();
     
@@ -270,10 +284,12 @@ function updateSelection() {
 
     if (isIntersecting) {
       if (index < filteredFiles.value.length) {
-        selectedFileIds.value.add(filteredFiles.value[index].id);
+        newSelection.add(filteredFiles.value[index].id);
       }
     }
   });
+  
+  libraryStore.ui.selectedFileIds = Array.from(newSelection);
 }
 
 function endSelection() {
@@ -369,14 +385,16 @@ function resetFilters() {
 function selectFile(file: FileItem, index: number, event: MouseEvent) {
   const id = file.id;
   (event.currentTarget as HTMLElement).focus();
+  const currentSelection = new Set(libraryStore.ui.selectedFileIds);
 
   if (event.ctrlKey || event.metaKey) {
-    if (selectedFileIds.value.has(id)) {
-      selectedFileIds.value.delete(id);
+    if (currentSelection.has(id)) {
+      currentSelection.delete(id);
     } else {
-      selectedFileIds.value.add(id);
+      currentSelection.add(id);
       lastSelectedId.value = id;
     }
+    libraryStore.ui.selectedFileIds = Array.from(currentSelection);
   } else if (event.shiftKey && lastSelectedId.value) {
     const lastIndex = filteredFiles.value.findIndex(f => f.id === lastSelectedId.value);
     if (lastIndex !== -1) {
@@ -384,29 +402,29 @@ function selectFile(file: FileItem, index: number, event: MouseEvent) {
       const end = Math.max(index, lastIndex);
       
       for (let i = start; i <= end; i++) {
-        selectedFileIds.value.add(filteredFiles.value[i].id);
+        currentSelection.add(filteredFiles.value[i].id);
       }
+      libraryStore.ui.selectedFileIds = Array.from(currentSelection);
     }
   } else {
-    selectedFileIds.value.clear();
-    selectedFileIds.value.add(id);
+    libraryStore.ui.selectedFileIds = [id];
     lastSelectedId.value = id;
   }
 }
 
 function clearSelection() {
-  selectedFileIds.value.clear();
+  libraryStore.ui.selectedFileIds = [];
   lastSelectedId.value = null;
 }
 
 function selectAll() {
-  filteredFiles.value.forEach(f => selectedFileIds.value.add(f.id));
+  libraryStore.ui.selectedFileIds = filteredFiles.value.map(f => f.id);
 }
 
 function deleteSelectedFiles() {
-  if (selectedFileIds.value.size > 0) {
-    actions.deleteFiles(Array.from(selectedFileIds.value));
-    selectedFileIds.value.clear();
+  if (libraryStore.ui.selectedFileIds.length > 0) {
+    actions.deleteFiles([...libraryStore.ui.selectedFileIds]);
+    libraryStore.ui.selectedFileIds = [];
   }
 }
 
@@ -442,7 +460,7 @@ function navigateSelection(key: string, shift: boolean) {
 
   // Find current focus
   let currentIndex = -1;
-  const currentId = preview.visible && preview.file ? preview.file.id : (lastSelectedId.value || (selectedFileIds.value.size > 0 ? Array.from(selectedFileIds.value)[0] : null));
+  const currentId = preview.visible && preview.file ? preview.file.id : (lastSelectedId.value || (libraryStore.ui.selectedFileIds.length > 0 ? libraryStore.ui.selectedFileIds[0] : null));
   
   if (currentId) {
     currentIndex = files.findIndex(f => f.id === currentId);
@@ -541,24 +559,23 @@ function updateSelectionState(targetId: string, targetIndex: number, shift: bool
     const anchorIndex = filteredFiles.value.findIndex(f => f.id === anchorId);
     
     if (anchorIndex !== -1) {
-      selectedFileIds.value.clear();
+      const newSelection = new Set<string>();
       const start = Math.min(anchorIndex, targetIndex);
       const end = Math.max(anchorIndex, targetIndex);
       
       for (let i = start; i <= end; i++) {
-        selectedFileIds.value.add(filteredFiles.value[i].id);
+        newSelection.add(filteredFiles.value[i].id);
       }
+      libraryStore.ui.selectedFileIds = Array.from(newSelection);
       // Note: we do NOT update lastSelectedId (anchor) when shift-selecting
     } else {
       // Anchor lost, treat as single select new anchor
-      selectedFileIds.value.clear();
-      selectedFileIds.value.add(targetId);
+      libraryStore.ui.selectedFileIds = [targetId];
       lastSelectedId.value = targetId;
     }
   } else {
     // Single select
-    selectedFileIds.value.clear();
-    selectedFileIds.value.add(targetId);
+    libraryStore.ui.selectedFileIds = [targetId];
     lastSelectedId.value = targetId;
   }
 }
@@ -585,7 +602,7 @@ const contextMenu = reactive({
 });
 
 function showContextMenu(e: MouseEvent, file: FileItem) {
-  if (!selectedFileIds.value.has(file.id)) {
+  if (!libraryStore.ui.selectedFileIds.includes(file.id)) {
     selectedFileIds.value.clear();
     selectedFileIds.value.add(file.id);
     lastSelectedId.value = file.id;
@@ -641,7 +658,6 @@ function handleMenuAction(action: string) {
 // Tag Input
 const showTagInput = ref(false);
 const targetFilesForTags = ref<FileItem[]>([]);
-const newTagValue = ref('');
 
 function openTagInput(file: FileItem) {
   if (selectedFileIds.value.size > 0 && selectedFileIds.value.has(file.id)) {
@@ -650,33 +666,9 @@ function openTagInput(file: FileItem) {
     targetFilesForTags.value = [file];
   }
   showTagInput.value = true;
-  newTagValue.value = '';
 }
 
-const displayedTags = computed(() => {
-  const allTagIds = new Set<string>();
-  targetFilesForTags.value.forEach(file => {
-    file.tag_ids.forEach(id => allTagIds.add(id));
-  });
-  return Array.from(allTagIds); // Returns IDs
-});
 
-async function addTag() {
-  const tagName = newTagValue.value.trim();
-  if (tagName) {
-    const fileIds = targetFilesForTags.value.map(f => f.id);
-    await actions.attachTagByName(fileIds, tagName);
-    newTagValue.value = '';
-  }
-}
-
-function removeTag(tagId: string) {
-  targetFilesForTags.value.forEach(file => {
-    if (file.tag_ids.includes(tagId)) {
-      actions.detachTag(file.id, tagId);
-    }
-  });
-}
 
 // Preview
 const preview = reactive({
@@ -1016,5 +1008,70 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 
 .close-btn:hover {
   background: var(--hover-color);
+}
+
+/* Tag Editor Modal Styles */
+.modal-wide {
+  width: 600px;
+  max-height: 80vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.files-editor-list {
+  max-height: 60vh;
+  overflow-y: auto;
+  padding: 16px;
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  margin-bottom: 16px;
+}
+
+.files-editor-list > *:last-child {
+  border-bottom: none;
+}
+
+/* Clear Selection Button */
+.clear-selection-btn {
+  position: absolute;
+  bottom: 24px;
+  left: 24px;
+  background-color: var(--bg-primary);
+  color: var(--text-primary);
+  border: 1px solid var(--border-color);
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 90;
+  transition: all 0.2s ease;
+  backdrop-filter: blur(8px);
+}
+
+.clear-selection-btn:hover {
+  background-color: var(--hover-color);
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+  border-color: var(--text-secondary);
+}
+
+.clear-selection-btn:active {
+  transform: translateY(0);
+}
+
+/* Fade Transition */
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
+  transform: translateY(10px);
 }
 </style>

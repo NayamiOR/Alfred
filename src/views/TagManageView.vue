@@ -82,6 +82,8 @@
         </div>
 
       </div>
+
+
     </div>
 
     <!-- Edit/Create Group Modal -->
@@ -156,6 +158,7 @@ const router = useRouter();
 function goBack() {
   router.back();
 }
+
 
 // Helpers
 function getGroupTags(groupId: string) {
@@ -386,6 +389,7 @@ async function deleteTag(id: string) {
   max-width: 800px;
   margin: 0 auto;
 }
+
 
 .group-block {
   margin-bottom: 24px;

@@ -33,7 +33,6 @@ export interface FileItem {
 interface AddFilesResponse {
   added_files: FileItem[];
   skipped_duplicates: string[];
-  skipped_unsupported: string[];
 }
 
 interface AppData {
@@ -54,6 +53,7 @@ interface LibraryState {
     globalScale: number;
     isGridView: boolean;
     showFilterPanel: boolean;
+    selectedFileIds: string[]; // NEW: track selected files for batch operations
     filters: {
       fileTypes: string[];
     };
@@ -90,6 +90,7 @@ const initialLibraryState: LibraryState = {
     globalScale: Number(localStorage.getItem('globalScale')) || 1.0,
     isGridView: true,
     showFilterPanel: false,
+    selectedFileIds: [],
     filters: {
       fileTypes: []
     },
@@ -162,24 +163,21 @@ export const actions = {
       // Notifications logic
       const addedCount = response.added_files.length;
       const dupCount = response.skipped_duplicates.length;
-      const unsuppCount = response.skipped_unsupported.length;
 
       if (addedCount > 0) {
-        if (dupCount === 0 && unsuppCount === 0) {
+        if (dupCount === 0) {
           notify(t('library.notify.addedFiles', { count: addedCount }), 'success');
         } else {
           // Mixed result
           let msg = t('library.notify.addFilesResult', { added: addedCount });
           if (dupCount > 0) msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
-          if (unsuppCount > 0) msg += ' ' + t('library.notify.skippedUnsupported', { count: unsuppCount });
           notify(msg, 'warning', 5000);
         }
       } else {
         // No files added
-        if (dupCount > 0 || unsuppCount > 0) {
+        if (dupCount > 0) {
           let msg = t('library.notify.noFilesAdded');
-          if (dupCount > 0) msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
-          if (unsuppCount > 0) msg += ' ' + t('library.notify.skippedUnsupported', { count: unsuppCount });
+          msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
           notify(msg, 'error');
         }
       }
@@ -230,7 +228,18 @@ export const actions = {
 
   async deleteTagGroup(id: string) {
     try {
+      // Collect all tag IDs in this group to remove from selection
+      const groupTagIds = new Set(
+        libraryStore.tags.filter(t => t.group_id === id).map(t => t.id)
+      );
+
       await invoke('delete_tag_group', { id });
+
+      // Remove deleted tags from the filter selection
+      libraryStore.ui.tagViewFilters.tags = libraryStore.ui.tagViewFilters.tags.filter(
+        tagId => !groupTagIds.has(tagId)
+      );
+
       await this.loadData(); // Reload to sync cascading changes
       notify(t('library.notify.groupDeleted'), 'success');
     } catch (error) {
@@ -292,7 +301,20 @@ export const actions = {
 
   async deleteTag(id: string) {
     try {
+      // Collect all tag IDs to remove from selection (the tag + its descendants)
+      const collectDescendantIds = (parentId: string): string[] => {
+        const children = libraryStore.tags.filter(t => t.parent_id === parentId);
+        return children.flatMap(child => [child.id, ...collectDescendantIds(child.id)]);
+      };
+      const idsToRemove = new Set([id, ...collectDescendantIds(id)]);
+
       await invoke('delete_tag', { id });
+
+      // Remove deleted tags from the filter selection
+      libraryStore.ui.tagViewFilters.tags = libraryStore.ui.tagViewFilters.tags.filter(
+        tagId => !idsToRemove.has(tagId)
+      );
+
       await this.loadData(); // Reload to sync
       notify(t('library.notify.tagDeleted'), 'success');
     } catch (error) {
