@@ -2,7 +2,7 @@
   <div class="file-thumbnail" ref="el">
     <!-- Folder -->
     <div v-if="file.extension === 'folder'" class="folder-icon">
-      <v-icon name="fc-folder" :scale="iconScale" />
+      <v-icon name="bi-folder" :scale="iconScale" />
     </div>
     
     <!-- Image / Thumbnail -->
@@ -14,13 +14,9 @@
       @error="onError"
     />
     
-    <!-- Fallback Icon -->
+    <!-- Fallback Icon based on extension/mime -->
     <div v-else class="cover-placeholder">
-      <v-icon v-if="file.mime_type.startsWith('image/')" name="fc-image-file" :scale="iconScale" />
-      <v-icon v-else-if="file.mime_type.startsWith('video/')" name="fc-video-file" :scale="iconScale" />
-      <v-icon v-else-if="file.mime_type.startsWith('audio/')" name="fc-audio-file" :scale="iconScale" />
-      <v-icon v-else-if="isDocument(file.extension)" name="fc-document" :scale="iconScale" />
-      <v-icon v-else name="fc-file" :scale="iconScale" />
+      <v-icon :name="getFileIcon(file)" :scale="iconScale" />
     </div>
   </div>
 </template>
@@ -48,6 +44,89 @@ const thumbnailUrl = ref<string | null>(null);
 let observer: IntersectionObserver | null = null;
 
 const iconScale = computed(() => libraryStore.ui.isGridView ? 3.5 : 1.2);
+
+// Extension to Bootstrap Icon mapping
+const extensionIconMap: Record<string, string> = {
+  // Documents
+  pdf: 'bi-file-earmark-pdf',
+  doc: 'bi-filetype-doc',
+  docx: 'bi-filetype-docx',
+  xls: 'bi-filetype-xls',
+  xlsx: 'bi-filetype-xlsx',
+  ppt: 'bi-filetype-ppt',
+  pptx: 'bi-filetype-pptx',
+  txt: 'bi-filetype-txt',
+  rtf: 'bi-filetype-txt',
+  
+  // eBooks
+  epub: 'bi-book-half',
+  mobi: 'bi-book-half',
+  azw3: 'bi-book-half',
+  
+  // Code & Data
+  json: 'bi-filetype-json',
+  xml: 'bi-filetype-xml',
+  csv: 'bi-filetype-csv',
+  md: 'bi-markdown',
+  markdown: 'bi-markdown',
+  html: 'bi-filetype-html',
+  htm: 'bi-filetype-html',
+  css: 'bi-filetype-css',
+  js: 'bi-filetype-js',
+  ts: 'bi-filetype-js',
+  py: 'bi-filetype-py',
+  java: 'bi-filetype-java',
+  cs: 'bi-filetype-cs',
+  yaml: 'bi-filetype-yml',
+  yml: 'bi-filetype-yml',
+  
+  // Fonts
+  ttf: 'bi-filetype-ttf',
+  otf: 'bi-filetype-ttf',
+  woff: 'bi-filetype-ttf',
+  woff2: 'bi-filetype-ttf',
+  
+  // Archives
+  zip: 'bi-file-earmark-zip',
+  rar: 'bi-file-earmark-zip',
+  '7z': 'bi-file-earmark-zip',
+  tar: 'bi-file-earmark-zip',
+  gz: 'bi-file-earmark-zip',
+  
+  // Executables
+  exe: 'bi-filetype-exe',
+  msi: 'bi-filetype-exe',
+  bat: 'bi-file-earmark-code',
+  cmd: 'bi-file-earmark-code',
+  ps1: 'bi-file-earmark-code',
+  sh: 'bi-file-earmark-code',
+};
+
+function getFileIcon(file: FileItem): string {
+  const ext = file.extension.toLowerCase();
+  
+  // Check extension map first
+  if (extensionIconMap[ext]) {
+    return extensionIconMap[ext];
+  }
+  
+  // Fallback to mime type
+  if (file.mime_type.startsWith('image/')) {
+    return 'bi-file-earmark-image';
+  }
+  if (file.mime_type.startsWith('video/')) {
+    return 'bi-file-earmark-play';
+  }
+  if (file.mime_type.startsWith('audio/')) {
+    return 'bi-soundwave';
+  }
+  if (file.mime_type.startsWith('text/')) {
+    return 'bi-file-earmark-text';
+  }
+  
+  // Default
+  return 'bi-file-earmark';
+}
 
 function isDocument(ext: string) {
   const docs = ['pdf', 'doc', 'docx', 'txt', 'md', 'markdown', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'json', 'xml', 'epub'];

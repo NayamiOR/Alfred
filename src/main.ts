@@ -23,7 +23,37 @@ import {
     PxArchive, FcFolder, FcDocument,
     FaSpinner,
     CoCaretLeft,
-    CoCaretRight
+    CoCaretRight,
+    // Bootstrap Icons for file types
+    BiFileEarmarkPdf,
+    BiFileEarmarkCode,
+    BiFileEarmarkZip,
+    BiFileEarmarkImage,
+    BiFileEarmarkPlay,
+    BiFileEarmark,
+    BiFiletypeExe,
+    BiFiletypeJson,
+    BiFiletypeXml,
+    BiFiletypeCsv,
+    BiFiletypeHtml,
+    BiFiletypeCss,
+    BiFiletypeJs,
+    BiFiletypePy,
+    BiFolder,
+    BiMarkdown,
+    BiBookHalf,
+    BiFiletypeCs,
+    BiFiletypeDoc,
+    BiFiletypeDocx,
+    BiFiletypeJava,
+    BiFiletypePpt,
+    BiFiletypePptx,
+    BiFiletypeTtf,
+    BiFiletypeTxt,
+    BiFiletypeXls,
+    BiFiletypeXlsx,
+    BiFiletypeYml,
+    BiSoundwave,
 } from "oh-vue-icons/icons";
 
 const app = createApp(App);
@@ -32,7 +62,16 @@ addIcons(
     PxArchive, CoSearch, CoHamburgerMenu, CoInbox, CoSettings, 
     CoTags, CoSun, CoMoon, CoExpandRight, CoPlus, CoCheck, CoWarning, CoInfo,
     FcVideoFile, FcAudioFile, FcFile, FcImageFile, FcFolder, FcDocument,
-    FaSpinner, CoCaretLeft, CoCaretRight
+    FaSpinner, CoCaretLeft, CoCaretRight,
+    // Bootstrap Icons for file types
+    BiFileEarmarkPdf, BiFileEarmarkCode, BiFileEarmarkZip, BiFileEarmarkImage,
+    BiFileEarmarkPlay, BiFileEarmark, BiFiletypeExe,
+    BiFiletypeJson, BiFiletypeXml, BiFiletypeCsv,
+    BiFiletypeHtml, BiFiletypeCss, BiFiletypeJs, BiFiletypePy,
+    BiFolder, BiMarkdown, BiBookHalf,
+    BiFiletypeCs, BiFiletypeDoc, BiFiletypeDocx, BiFiletypeJava,
+    BiFiletypePpt, BiFiletypePptx, BiFiletypeTtf, BiFiletypeTxt,
+    BiFiletypeXls, BiFiletypeXlsx, BiFiletypeYml, BiSoundwave
 )
 
 app.use(router);
