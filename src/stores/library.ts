@@ -230,7 +230,18 @@ export const actions = {
 
   async deleteTagGroup(id: string) {
     try {
+      // Collect all tag IDs in this group to remove from selection
+      const groupTagIds = new Set(
+        libraryStore.tags.filter(t => t.group_id === id).map(t => t.id)
+      );
+
       await invoke('delete_tag_group', { id });
+
+      // Remove deleted tags from the filter selection
+      libraryStore.ui.tagViewFilters.tags = libraryStore.ui.tagViewFilters.tags.filter(
+        tagId => !groupTagIds.has(tagId)
+      );
+
       await this.loadData(); // Reload to sync cascading changes
       notify(t('library.notify.groupDeleted'), 'success');
     } catch (error) {
@@ -292,7 +303,20 @@ export const actions = {
 
   async deleteTag(id: string) {
     try {
+      // Collect all tag IDs to remove from selection (the tag + its descendants)
+      const collectDescendantIds = (parentId: string): string[] => {
+        const children = libraryStore.tags.filter(t => t.parent_id === parentId);
+        return children.flatMap(child => [child.id, ...collectDescendantIds(child.id)]);
+      };
+      const idsToRemove = new Set([id, ...collectDescendantIds(id)]);
+
       await invoke('delete_tag', { id });
+
+      // Remove deleted tags from the filter selection
+      libraryStore.ui.tagViewFilters.tags = libraryStore.ui.tagViewFilters.tags.filter(
+        tagId => !idsToRemove.has(tagId)
+      );
+
       await this.loadData(); // Reload to sync
       notify(t('library.notify.tagDeleted'), 'success');
     } catch (error) {
