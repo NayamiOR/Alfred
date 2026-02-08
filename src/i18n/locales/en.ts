@@ -83,6 +83,7 @@ export default {
     copyFile: 'Copy File',
     delete: 'Delete',
     deleteMulti: 'Delete {n} items',
+    clearSelection: 'Clear Selection',
     contextEditTags: 'Edit Tags...',
     contextEditTagsMulti: 'Edit Tags ({n} items)...',
     previewNotAvailable: 'Preview not available',

@@ -83,6 +83,7 @@ export default {
     copyFile: '复制文件',
     delete: '删除',
     deleteMulti: '删除 {n} 个项目',
+    clearSelection: '清除选择',
     contextEditTags: '编辑标签...',
     contextEditTagsMulti: '编辑标签 ({n} 个项目)...',
     previewNotAvailable: '预览不可用',
