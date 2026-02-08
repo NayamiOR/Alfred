@@ -43,7 +43,9 @@ export default {
     addTag: 'New Tag',
     duplicateGroupError: 'A group with this name already exists.',
     deleteGroupTitle: 'Delete Group',
-    deleteGroupMessage: 'Are you sure you want to delete this group? Tags will be ungrouped.'
+    deleteGroupMessage: 'Are you sure you want to delete this group? Tags will be ungrouped.',
+    noSpacesAllowed: 'Tag name cannot contain spaces',
+    tagInputPlaceholder: 'Add tag...'
   },
   shortcutBar: {
     resourceLibrary: 'Files',

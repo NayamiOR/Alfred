@@ -53,6 +53,7 @@ interface LibraryState {
     globalScale: number;
     isGridView: boolean;
     showFilterPanel: boolean;
+    selectedFileIds: string[]; // NEW: track selected files for batch operations
     filters: {
       fileTypes: string[];
     };
@@ -89,6 +90,7 @@ const initialLibraryState: LibraryState = {
     globalScale: Number(localStorage.getItem('globalScale')) || 1.0,
     isGridView: true,
     showFilterPanel: false,
+    selectedFileIds: [],
     filters: {
       fileTypes: []
     },
@@ -191,6 +193,8 @@ export const actions = {
     try {
       await invoke('delete_files', { ids });
       libraryStore.files = libraryStore.files.filter(f => !ids.includes(f.id));
+      // Clean up selectedFileIds to remove deleted files
+      libraryStore.ui.selectedFileIds = libraryStore.ui.selectedFileIds.filter(id => !ids.includes(id));
       notify(t('library.notify.deletedFiles', { count: ids.length }), 'success');
     } catch (error) {
       console.error('Failed to delete files:', error);
