@@ -33,7 +33,6 @@ export interface FileItem {
 interface AddFilesResponse {
   added_files: FileItem[];
   skipped_duplicates: string[];
-  skipped_unsupported: string[];
 }
 
 interface AppData {
@@ -162,24 +161,21 @@ export const actions = {
       // Notifications logic
       const addedCount = response.added_files.length;
       const dupCount = response.skipped_duplicates.length;
-      const unsuppCount = response.skipped_unsupported.length;
 
       if (addedCount > 0) {
-        if (dupCount === 0 && unsuppCount === 0) {
+        if (dupCount === 0) {
           notify(t('library.notify.addedFiles', { count: addedCount }), 'success');
         } else {
           // Mixed result
           let msg = t('library.notify.addFilesResult', { added: addedCount });
           if (dupCount > 0) msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
-          if (unsuppCount > 0) msg += ' ' + t('library.notify.skippedUnsupported', { count: unsuppCount });
           notify(msg, 'warning', 5000);
         }
       } else {
         // No files added
-        if (dupCount > 0 || unsuppCount > 0) {
+        if (dupCount > 0) {
           let msg = t('library.notify.noFilesAdded');
-          if (dupCount > 0) msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
-          if (unsuppCount > 0) msg += ' ' + t('library.notify.skippedUnsupported', { count: unsuppCount });
+          msg += ' ' + t('library.notify.skippedDuplicates', { count: dupCount });
           notify(msg, 'error');
         }
       }

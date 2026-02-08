@@ -55,7 +55,6 @@ fn get_initial_data(state: State<AppState>) -> AppData {
 pub struct AddFilesResponse {
     pub added_files: Vec<FileItem>,
     pub skipped_duplicates: Vec<String>,
-    pub skipped_unsupported: Vec<String>,
 }
 
 #[tauri::command]
@@ -67,25 +66,6 @@ fn add_files(
     let mut data = state.data.lock().unwrap();
     let mut added_files = Vec::new();
     let mut skipped_duplicates = Vec::new();
-    let mut skipped_unsupported = Vec::new();
-
-    // Whitelists
-    let docs = vec![
-        "pdf", "doc", "docx", "txt", "md", "markdown", "xls", "xlsx", "ppt", "pptx", "rtf", "csv",
-        "json", "xml", "epub",
-    ];
-    let images = vec![
-        "jpg", "jpeg", "png", "gif", "bmp", "webp", "svg", "ico", "tiff",
-    ];
-    let videos = vec!["mp4", "mkv", "avi", "mov", "webm", "wmv", "flv"];
-    let audios = vec!["mp3", "wav", "flac", "aac", "ogg", "m4a", "wma"];
-
-    let allowed_exts: HashSet<&str> = docs
-        .into_iter()
-        .chain(images)
-        .chain(videos)
-        .chain(audios)
-        .collect();
 
     // Create a HashSet of existing paths for fast lookup
     let existing_paths: HashSet<String> = data.files.iter().map(|f| f.path.clone()).collect();
@@ -121,12 +101,6 @@ fn add_files(
             .unwrap_or_default()
             .to_string_lossy()
             .to_lowercase();
-
-        // Filter logic: Allow if it's a directory OR if the extension is in whitelist
-        if !is_dir && !allowed_exts.contains(extension.as_str()) {
-            skipped_unsupported.push(path_str);
-            continue;
-        }
 
         let name = path
             .file_name()
@@ -168,7 +142,6 @@ fn add_files(
     AddFilesResponse {
         added_files,
         skipped_duplicates,
-        skipped_unsupported,
     }
 }
 
