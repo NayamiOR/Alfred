@@ -1,6 +1,6 @@
 # 贡献指南
 
-感谢您对 Alfred 项目的兴趣！我们欢迎任何形式的贡献，包括但不限于 Bug 报告、功能建议、代码提交和文档改进。
+感谢您对 InchBox 项目的兴趣！我们欢迎任何形式的贡献，包括但不限于 Bug 报告、功能建议、代码提交和文档改进。
 
 ## 报告 Bug
 
@@ -33,8 +33,8 @@
 
 2. **克隆您的 Fork**
    ```bash
-   git clone https://github.com/YOUR_USERNAME/alfred.git
-   cd alfred
+   git clone https://github.com/YOUR_USERNAME/InchBox.git
+   cd InchBox
    ```
 
 3. **创建 Feature 分支**
@@ -212,7 +212,7 @@ Added detailed Node.js and Rust version requirements.
 
 ---
 
-**再次感谢您的贡献！** 每一个 PR、每一个 Issue、每一条建议都让 Alfred 变得更好。
+**再次感谢您的贡献！** 每一个 PR、每一个 Issue、每一条建议都让 InchBox 变得更好。
 
 <!-- TODO: 补充以下内容（可选）:
 - 更详细的代码审查流程
