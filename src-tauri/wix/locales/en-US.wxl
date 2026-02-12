@@ -1,13 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="en-US" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-  <String Id="LaunchApp">Launch Alfred</String>
+  <String Id="LaunchApp">Launch InchBox</String>
   <String Id="DowngradeErrorMessage">
-    A newer version of Alfred is already installed.
+    A newer version of InchBox is already installed.
   </String>
   <String Id="PathEnvVarFeature">
-    Add the install location of the Alfred executable to
+    Add the install location of the InchBox executable to
     the PATH system environment variable. This allows the
-    Alfred executable to be called from any location.
+    InchBox executable to be called from any location.
   </String>
-  <String Id="InstallAppFeature">Installs Alfred.</String>
+  <String Id="InstallAppFeature">Installs InchBox.</String>
 </WixLocalization>

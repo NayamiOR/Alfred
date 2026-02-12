@@ -1,4 +1,4 @@
-# Alfred
+# InchBox
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -63,8 +63,8 @@
 
 1. **克隆仓库**:
    ```bash
-   git clone https://github.com/nayamior/alfred.git
-   cd alfred
+   git clone https://github.com/nayamior/inchbox.git
+   cd inchbox
    ```
 
 2. **安装依赖**:

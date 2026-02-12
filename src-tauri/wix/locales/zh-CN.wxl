@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <WixLocalization Culture="zh-CN" xmlns="http://schemas.microsoft.com/wix/2006/localization">
-  <String Id="LaunchApp">启动 Alfred</String>
-  <String Id="DowngradeErrorMessage">已安装更新版本的 Alfred。</String>
+  <String Id="LaunchApp">启动 InchBox</String>
+  <String Id="DowngradeErrorMessage">已安装更新版本的 InchBox。</String>
   <String Id="PathEnvVarFeature">
-    将 Alfred 可执行文件的安装位置添加到 PATH 系统环境变量中。
-    这允许从任何位置调用 Alfred 可执行文件。
+    将 InchBox 可执行文件的安装位置添加到 PATH 系统环境变量中。
+    这允许从任何位置调用 InchBox 可执行文件。
   </String>
-  <String Id="InstallAppFeature">安装 Alfred。</String>
+  <String Id="InstallAppFeature">安装 InchBox。</String>
 </WixLocalization>

@@ -12,7 +12,7 @@ export default {
     },
     autostart: {
       label: '开机启动',
-      desc: '登录时自动启动 Alfred'
+      desc: '登录时自动启动 InchBox'
     }
   },
   sidebar: {
@@ -146,7 +146,7 @@ export default {
     }
   },
   tray: {
-    show: '打开 Alfred',
+    show: '打开 InchBox',
     quit: '退出'
   },
   drag: {

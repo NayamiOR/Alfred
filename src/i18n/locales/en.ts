@@ -12,7 +12,7 @@ export default {
     },
     autostart: {
       label: 'Run on Startup',
-      desc: 'Automatically start Alfred when you log in'
+      desc: 'Automatically start InchBox when you log in'
     }
   },
   sidebar: {
@@ -146,7 +146,7 @@ export default {
     }
   },
   tray: {
-    show: 'Open Alfred',
+    show: 'Open InchBox',
     quit: 'Quit'
   },
   drag: {
