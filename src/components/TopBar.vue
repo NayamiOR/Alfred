@@ -11,13 +11,16 @@
 import { computed } from 'vue';
 import LibraryTopBar from './topbars/LibraryTopBar.vue';
 import SettingsTopBar from './topbars/SettingsTopBar.vue';
+import TagsTopBar from './topbars/TagsTopBar.vue';
 import WindowControls from './WindowControls.vue';
 
 const props = defineProps<{ currentRoute: string }>();
 
 const topBarComponent = computed(() => {
   if (props.currentRoute === 'Library') return LibraryTopBar;
-  if (props.currentRoute === 'Settings') return SettingsTopBar;
+  else if (props.currentRoute === 'Tags') return TagsTopBar;
+  else if (props.currentRoute === 'Settings') return SettingsTopBar;
+  else console.log("Invalid Route")
   return null;
 });
 </script>

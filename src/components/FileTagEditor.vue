@@ -26,7 +26,7 @@
           @input="onInput"
           @focus="onFocus"
           @blur="onBlur"
-          :placeholder="t('tagManage.tagInputPlaceholder') || 'Add tag...'"
+           :placeholder="t('library.tagInputPlaceholder') || 'Add tag...'"
           class="tag-input"
           type="text"
         />
@@ -129,7 +129,19 @@ function onKeyDown(event: KeyboardEvent) {
     return;
   }
   
-  // Enter: Add highlighted or first suggestion
+  // Space: Attach tag by name if input is not empty
+  if (event.key === ' ') {
+    if (inputValue.value.trim()) {
+      event.preventDefault();
+      actions.attachTagByName([props.file.id], inputValue.value.trim());
+      inputValue.value = '';
+      showSuggestions.value = false;
+      highlightedIndex.value = 0;
+    }
+    return;
+  }
+  
+  // Enter: Add highlighted or first suggestion, fallback to attachTagByName
   if (event.key === 'Enter') {
     event.preventDefault();
     if (filteredTags.value.length > 0 && showSuggestions.value) {
@@ -137,7 +149,13 @@ function onKeyDown(event: KeyboardEvent) {
       if (tagToAdd) {
         addTag(tagToAdd.id);
       }
+    } else if (inputValue.value.trim()) {
+      // Fallback: attach tag by name if no suggestion selected
+      actions.attachTagByName([props.file.id], inputValue.value.trim());
     }
+    inputValue.value = '';
+    showSuggestions.value = false;
+    highlightedIndex.value = 0;
     return;
   }
   

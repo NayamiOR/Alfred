@@ -41,6 +41,7 @@ export default {
     files: '个文件',
     addGroup: '新建分组',
     addTag: '新建标签',
+    tagNamePlaceholder: '标签名称',
     duplicateGroupError: '分组名称已存在',
     deleteGroupTitle: '删除分组',
     deleteGroupMessage: '确定要删除此分组吗？其中的标签将变为未分组状态。'

@@ -41,6 +41,7 @@ export default {
     files: 'files',
     addGroup: 'New Group',
     addTag: 'New Tag',
+    tagNamePlaceholder: 'Tag Name',
     duplicateGroupError: 'A group with this name already exists.',
     deleteGroupTitle: 'Delete Group',
     deleteGroupMessage: 'Are you sure you want to delete this group? Tags will be ungrouped.'
