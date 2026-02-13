@@ -1,15 +1,5 @@
 <template>
   <div class="tag-manage-view">
-    <div class="header">
-      <button @click="goBack" class="back-btn">← {{ t('tagManage.back') }}</button>
-      <h2>{{ t('tagManage.title') }}</h2>
-      <div class="header-actions">
-        <button @click="openCreateGroup" class="action-btn create">
-          <v-icon name="co-plus" scale="0.8" /> {{ t('tagManage.addGroup') }}
-        </button>
-      </div>
-    </div>
-
     <div class="content">
       <div v-if="libraryStore.tags.length === 0 && libraryStore.groups.length === 0" class="empty-state">
         {{ t('tagManage.noTags') }}
@@ -87,15 +77,15 @@
     </div>
 
     <!-- Edit/Create Group Modal -->
-    <div v-if="groupModal.visible" class="modal-backdrop" @click="closeGroupModal">
+    <div v-if="libraryStore.ui.tagGroupModal.visible" class="modal-backdrop" @click="closeGroupModal">
       <div class="modal" @click.stop>
-        <h3>{{ groupModal.isEdit ? 'Edit Group' : 'Create Group' }}</h3>
+        <h3>{{ libraryStore.ui.tagGroupModal.isEdit ? 'Edit Group' : 'Create Group' }}</h3>
         
         <label class="input-label">Group Name</label>
-        <input v-model="groupModal.name" class="input-field" />
+        <input v-model="libraryStore.ui.tagGroupModal.name" class="input-field" />
         
         <label class="input-label">Color (Hex)</label>
-        <input v-model="groupModal.color" placeholder="#RRGGBB" class="input-field" />
+        <input v-model="libraryStore.ui.tagGroupModal.color" placeholder="#RRGGBB" class="input-field" />
         
         <div class="modal-actions">
           <button @click="closeGroupModal">Cancel</button>
@@ -108,7 +98,7 @@
     <div v-if="tagModal.visible" class="modal-backdrop" @click="closeTagModal">
       <div class="modal" @click.stop>
         <h3>{{ tagModal.isEdit ? 'Edit Tag' : 'Create Tag' }}</h3>
-        <input v-model="tagModal.name" placeholder="Tag Name" class="input-field" />
+        <input v-model="tagModal.name" :placeholder="t('tagManage.tagNamePlaceholder')" class="input-field" />
         
         <label>Group:</label>
         <select v-model="tagModal.groupId" class="input-field">
@@ -147,18 +137,11 @@
 
 <script setup lang="ts">
 import { reactive } from 'vue';
-import { useRouter } from 'vue-router';
 import { useI18n } from 'vue-i18n';
 import { libraryStore, actions, Tag, TagGroup } from '../stores/library';
 import { notify } from '../stores/notification';
 
 const { t } = useI18n();
-const router = useRouter();
-
-function goBack() {
-  router.back();
-}
-
 
 // Helpers
 function getGroupTags(groupId: string) {
@@ -174,42 +157,28 @@ function getFileCount(tagId: string) {
   return libraryStore.files.filter(f => f.tag_ids.includes(tagId)).length;
 }
 
-// Group Modal
-const groupModal = reactive({
-  visible: false,
-  isEdit: false,
-  id: '',
-  name: '',
-  color: '' as string | null
-});
-
-function openCreateGroup() {
-  groupModal.visible = true;
-  groupModal.isEdit = false;
-  groupModal.name = '';
-  groupModal.color = '';
-}
-
+// Group Modal - using store state
 function editGroup(group: TagGroup) {
-  groupModal.visible = true;
-  groupModal.isEdit = true;
-  groupModal.id = group.id;
-  groupModal.name = group.name;
-  groupModal.color = group.color || '';
+  libraryStore.ui.tagGroupModal.visible = true;
+  libraryStore.ui.tagGroupModal.isEdit = true;
+  libraryStore.ui.tagGroupModal.id = group.id;
+  libraryStore.ui.tagGroupModal.name = group.name;
+  libraryStore.ui.tagGroupModal.color = group.color || '';
 }
 
 function closeGroupModal() {
-  groupModal.visible = false;
+  libraryStore.ui.tagGroupModal.visible = false;
 }
 
 async function saveGroup() {
-  if (!groupModal.name) return;
+  const modalState = libraryStore.ui.tagGroupModal;
+  if (!modalState.name) return;
   
   // Validate duplicate name
-  const trimmedName = groupModal.name.trim();
+  const trimmedName = modalState.name.trim();
   const duplicate = libraryStore.groups.find(g => 
     g.name.toLowerCase() === trimmedName.toLowerCase() && 
-    g.id !== groupModal.id
+    g.id !== modalState.id
   );
 
   if (duplicate) {
@@ -218,7 +187,7 @@ async function saveGroup() {
   }
   
   // Validate color
-  const color = groupModal.color ? groupModal.color.trim() : null;
+  const color = modalState.color ? modalState.color.trim() : null;
   if (color) {
     const hexRegex = /^#([0-9A-F]{3}){1,2}$/i;
     if (!hexRegex.test(color)) {
@@ -227,8 +196,8 @@ async function saveGroup() {
     }
   }
 
-  if (groupModal.isEdit) {
-    await actions.updateTagGroup(groupModal.id, trimmedName, color);
+  if (modalState.isEdit) {
+    await actions.updateTagGroup(modalState.id, trimmedName, color);
   } else {
     await actions.createTagGroup(trimmedName, color);
   }
@@ -343,40 +312,6 @@ async function deleteTag(id: string) {
   flex-direction: column;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-}
-
-.header {
-  padding: 16px;
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-}
-
-.back-btn {
-  background: none;
-  border: 1px solid var(--border-color);
-  padding: 6px 12px;
-  border-radius: 6px;
-  cursor: pointer;
-  color: var(--text-primary);
-  margin-right: 16px;
-}
-
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.action-btn.create {
-  background-color: var(--bg-secondary);
-  border: 1px dashed var(--border-color);
-  border-radius: 6px;
-  padding: 6px 12px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  gap: 6px;
 }
 
 .content {

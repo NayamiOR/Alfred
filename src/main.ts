@@ -24,6 +24,7 @@ import {
     FaSpinner,
     CoCaretLeft,
     CoCaretRight,
+    MdClose,
     // Bootstrap Icons for file types
     BiFileEarmarkPdf,
     BiFileEarmarkCode,
@@ -62,7 +63,7 @@ addIcons(
     PxArchive, CoSearch, CoHamburgerMenu, CoInbox, CoSettings, 
     CoTags, CoSun, CoMoon, CoExpandRight, CoPlus, CoCheck, CoWarning, CoInfo,
     FcVideoFile, FcAudioFile, FcFile, FcImageFile, FcFolder, FcDocument,
-    FaSpinner, CoCaretLeft, CoCaretRight,
+    FaSpinner, CoCaretLeft, CoCaretRight, MdClose,
     // Bootstrap Icons for file types
     BiFileEarmarkPdf, BiFileEarmarkCode, BiFileEarmarkZip, BiFileEarmarkImage,
     BiFileEarmarkPlay, BiFileEarmark, BiFiletypeExe,

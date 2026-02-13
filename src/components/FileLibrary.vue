@@ -159,10 +159,16 @@ const lastSelectedId = ref<string | null>(null);
 
 // Selection Rectangle Logic
 const isSelecting = ref(false);
+const wasSelecting = ref(false); // To prevent click event after drag selection
+const shouldClearOnDrag = ref(false); // To handle delayed clearing when starting drag on item
 const selectionStart = ref({ x: 0, y: 0 });
 const selectionCurrent = ref({ x: 0, y: 0 });
 const fileContainerRef = ref<HTMLElement | null>(null);
 const fileItemRefs = ref<HTMLElement[]>([]);
+
+// Store selection state at the start of drag for replacement mode
+const selectionBaseAtStart = ref<Set<string>>(new Set());
+const isAdditiveSelection = ref(false); // Whether Ctrl is held during selection start
 
 const selectionRectStyle = computed(() => {
   const left = Math.min(selectionStart.value.x, selectionCurrent.value.x);
@@ -179,15 +185,35 @@ const selectionRectStyle = computed(() => {
 
 function startSelection(e: MouseEvent) {
   const target = e.target as HTMLElement;
-  if (target.closest('.file-item') || target === fileContainerRef.value && e.offsetX > target.clientWidth) return;
+  // Allow selection on .file-item, but prevent on scrollbar
+  if (target === fileContainerRef.value && e.offsetX > target.clientWidth) return;
   
   if (e.button !== 0) return;
 
-  if (!e.ctrlKey && !e.metaKey && !e.shiftKey) {
-    clearSelection();
+  const isCtrl = e.ctrlKey || e.metaKey;
+  const clickedOnItem = !!target.closest('.file-item');
+
+  // Record selection mode and base state
+  isAdditiveSelection.value = isCtrl;
+  if (isCtrl) {
+    // In additive mode, preserve current selection as base
+    selectionBaseAtStart.value = new Set(libraryStore.ui.selectedFileIds);
+    shouldClearOnDrag.value = false;
+  } else {
+    // In replacement mode, start with empty or handle delayed clear
+    if (!clickedOnItem) {
+      clearSelection();
+      selectionBaseAtStart.value = new Set();
+      shouldClearOnDrag.value = false;
+    } else {
+      // Delay clearing until drag actually starts
+      selectionBaseAtStart.value = new Set(libraryStore.ui.selectedFileIds);
+      shouldClearOnDrag.value = true;
+    }
   }
 
   isSelecting.value = false;
+  wasSelecting.value = false;
   
   const containerRect = fileContainerRef.value!.getBoundingClientRect();
   const scrollTop = fileContainerRef.value!.scrollTop;
@@ -215,7 +241,7 @@ function onSelectionMove(e: MouseEvent) {
   const scrollLeft = container.scrollLeft;
 
   let currentX = e.clientX - containerRect.left + scrollLeft;
-  let currentY = e.clientY - containerRect.top + scrollTop;
+  const currentY = e.clientY - containerRect.top + scrollTop;
 
   selectionCurrent.value = { x: currentX, y: currentY };
 
@@ -224,6 +250,12 @@ function onSelectionMove(e: MouseEvent) {
     const dy = currentY - selectionStart.value.y;
     if (Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) {
       isSelecting.value = true;
+      // If we delayed clearing (started on item without modifiers), do it now
+      if (shouldClearOnDrag.value && !isAdditiveSelection.value) {
+        clearSelection();
+        selectionBaseAtStart.value = new Set();
+        shouldClearOnDrag.value = false;
+      }
     } else {
       return;
     }
@@ -267,9 +299,12 @@ function updateSelection() {
   const scrollTop = fileContainerRef.value.scrollTop;
   const scrollLeft = fileContainerRef.value.scrollLeft;
   
-  const newSelection = new Set(libraryStore.ui.selectedFileIds);
+  // Calculate which items are currently in the selection rectangle
+  const currentlyIntersecting = new Set<string>();
   
   items.forEach((item, index) => {
+    if (index >= filteredFiles.value.length) return;
+    
     const itemRect = item.getBoundingClientRect();
     
     const itemLeft = itemRect.left - containerRect.left + scrollLeft;
@@ -283,17 +318,43 @@ function updateSelection() {
                              rectBottom < itemTop);
 
     if (isIntersecting) {
-      if (index < filteredFiles.value.length) {
-        newSelection.add(filteredFiles.value[index].id);
-      }
+      currentlyIntersecting.add(filteredFiles.value[index].id);
     }
   });
+  
+  // Apply selection based on mode
+  let newSelection: Set<string>;
+  
+  if (isAdditiveSelection.value) {
+    // Additive mode (Ctrl held): toggle items in the intersection
+    newSelection = new Set(selectionBaseAtStart.value);
+    
+    // Toggle items based on current intersection
+    currentlyIntersecting.forEach(id => {
+      if (newSelection.has(id)) {
+        newSelection.delete(id);  // Deselect if already selected
+      } else {
+        newSelection.add(id);     // Select if not selected
+      }
+    });
+  } else {
+    // Replacement mode: only currently intersecting items
+    newSelection = currentlyIntersecting;
+  }
   
   libraryStore.ui.selectedFileIds = Array.from(newSelection);
 }
 
 function endSelection() {
+  if (isSelecting.value) {
+    wasSelecting.value = true;
+    setTimeout(() => wasSelecting.value = false, 0);
+  }
   isSelecting.value = false;
+  shouldClearOnDrag.value = false;
+  selectionBaseAtStart.value = new Set();
+  isAdditiveSelection.value = false;
+  
   if (scrollInterval) {
     clearInterval(scrollInterval);
     scrollInterval = null;
@@ -383,6 +444,8 @@ function resetFilters() {
 
 // Selection Logic
 function selectFile(file: FileItem, index: number, event: MouseEvent) {
+  if (wasSelecting.value) return;
+
   const id = file.id;
   (event.currentTarget as HTMLElement).focus();
   const currentSelection = new Set(libraryStore.ui.selectedFileIds);
