@@ -1,17 +1,17 @@
 <template>
   <div class="notification-container">
     <TransitionGroup name="toast">
-      <NotificationToast 
-        v-for="notification in notificationStore.notifications" 
-        :key="notification.id"
-        :notification="notification"
+      <NotificationToast
+          v-for="notification in notificationStore.notifications"
+          :key="notification.id"
+          :notification="notification"
       />
     </TransitionGroup>
   </div>
 </template>
 
 <script setup lang="ts">
-import { notificationStore } from '../stores/notification';
+import {notificationStore} from '../stores/notification';
 import NotificationToast from './NotificationToast.vue';
 </script>
 

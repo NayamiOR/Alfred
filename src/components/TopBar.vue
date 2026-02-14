@@ -1,14 +1,14 @@
 <template>
   <header class="top-bar" data-tauri-drag-region>
     <div class="top-bar-content">
-      <component :is="topBarComponent" />
+      <component :is="topBarComponent"/>
     </div>
-    <WindowControls />
+    <WindowControls/>
   </header>
 </template>
 
 <script setup lang="ts">
-import { computed } from 'vue';
+import {computed} from 'vue';
 import LibraryTopBar from './topbars/LibraryTopBar.vue';
 import SettingsTopBar from './topbars/SettingsTopBar.vue';
 import TagsTopBar from './topbars/TagsTopBar.vue';

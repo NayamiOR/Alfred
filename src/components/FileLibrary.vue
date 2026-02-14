@@ -1,31 +1,32 @@
 <template>
-    <div 
-      class="file-library" 
-    >
-      <!-- Filter Panel Overlay -->
-    <div v-if="libraryStore.ui.showFilterPanel" class="filter-backdrop" @click="libraryStore.ui.showFilterPanel = false"></div>
+  <div
+      class="file-library"
+  >
+    <!-- Filter Panel Overlay -->
+    <div v-if="libraryStore.ui.showFilterPanel" class="filter-backdrop"
+         @click="libraryStore.ui.showFilterPanel = false"></div>
 
     <transition name="slide-fade">
-      <FilterPanel 
-        v-if="libraryStore.ui.showFilterPanel"
-        v-model:selected-types="libraryStore.ui.filters.fileTypes"
-        v-model:sort="libraryStore.ui.sortConfig"
-        @close="libraryStore.ui.showFilterPanel = false"
-        @reset="resetFilters"
+      <FilterPanel
+          v-if="libraryStore.ui.showFilterPanel"
+          v-model:selected-types="libraryStore.ui.filters.fileTypes"
+          v-model:sort="libraryStore.ui.sortConfig"
+          @close="libraryStore.ui.showFilterPanel = false"
+          @reset="resetFilters"
       />
     </transition>
 
-    <div 
-      :class="['file-container', { 'grid-view': libraryStore.ui.isGridView, 'list-view': !libraryStore.ui.isGridView }]"
-      :style="{ '--card-scale': libraryStore.ui.cardScale }"
-      @mousedown="startSelection"
-      ref="fileContainerRef"
+    <div
+        :class="['file-container', { 'grid-view': libraryStore.ui.isGridView, 'list-view': !libraryStore.ui.isGridView }]"
+        :style="{ '--card-scale': libraryStore.ui.cardScale }"
+        @mousedown="startSelection"
+        ref="fileContainerRef"
     >
       <!-- Selection Rectangle -->
-      <div 
-        v-if="isSelecting" 
-        class="selection-rect"
-        :style="selectionRectStyle"
+      <div
+          v-if="isSelecting"
+          class="selection-rect"
+          :style="selectionRectStyle"
       ></div>
 
       <div v-if="filteredFiles.length === 0" class="empty-state">
@@ -33,7 +34,7 @@
         {{ t('library.emptyNoFilesDesc') }}
       </div>
 
-        <div
+      <div
           v-for="(file, index) in filteredFiles"
           :key="file.id"
           :class="['file-item', { 'grid-item': libraryStore.ui.isGridView, 'list-item': !libraryStore.ui.isGridView, 'selected': libraryStore.ui.selectedFileIds.includes(file.id) }]"
@@ -45,17 +46,18 @@
           @drop.stop="onDropTagToFile($event, file)"
           @mouseup="onMouseUp($event, file)"
           ref="fileItemRefs"
-        >
-        <div :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
-          <FileThumbnail :file="file" />
-          
+      >
+        <div
+            :class="['file-cover', { 'grid-cover': libraryStore.ui.isGridView, 'list-cover': !libraryStore.ui.isGridView }]">
+          <FileThumbnail :file="file"/>
+
           <!-- Tag Badges Overlay -->
           <div v-if="file.tag_ids.length > 0 && libraryStore.ui.isGridView" class="file-tags">
-            <span 
-              v-for="tagId in file.tag_ids.slice(0, 3)" 
-              :key="tagId" 
-              class="tag-badge"
-              :style="{ backgroundColor: getTagColor(tagId) }"
+            <span
+                v-for="tagId in file.tag_ids.slice(0, 3)"
+                :key="tagId"
+                class="tag-badge"
+                :style="{ backgroundColor: getTagColor(tagId) }"
             >
               {{ getTagName(tagId) }}
             </span>
@@ -66,11 +68,11 @@
           <div class="file-name" :title="file.name">{{ file.name }}</div>
           <!-- List View Tags -->
           <div v-if="!libraryStore.ui.isGridView && file.tag_ids.length > 0" class="list-tags">
-            <span 
-              v-for="tagId in file.tag_ids" 
-              :key="tagId" 
-              class="tag-badge-small"
-              :style="{ backgroundColor: getTagColor(tagId), borderColor: getTagColor(tagId) ? 'transparent' : 'var(--border-color)', color: getTagColor(tagId) ? '#fff' : 'var(--text-secondary)' }"
+            <span
+                v-for="tagId in file.tag_ids"
+                :key="tagId"
+                class="tag-badge-small"
+                :style="{ backgroundColor: getTagColor(tagId), borderColor: getTagColor(tagId) ? 'transparent' : 'var(--border-color)', color: getTagColor(tagId) ? '#fff' : 'var(--text-secondary)' }"
             >
               {{ getTagName(tagId) }}
             </span>
@@ -81,44 +83,46 @@
 
     <!-- Clear Selection Button -->
     <transition name="fade">
-      <button 
-        v-if="libraryStore.ui.selectedFileIds.length > 0"
-        class="clear-selection-btn"
-        @click="clearSelection"
+      <button
+          v-if="libraryStore.ui.selectedFileIds.length > 0"
+          class="clear-selection-btn"
+          @click="clearSelection"
       >
         {{ t('library.clearSelection') }}
       </button>
     </transition>
 
     <!-- Context Menu -->
-    <ContextMenu 
-      :visible="contextMenu.visible" 
-      :position="contextMenu.position" 
-      :items="contextMenu.items"
-      @close="contextMenu.visible = false"
-      @action="handleMenuAction"
+    <ContextMenu
+        :visible="contextMenu.visible"
+        :position="contextMenu.position"
+        :items="contextMenu.items"
+        @close="contextMenu.visible = false"
+        @action="handleMenuAction"
     />
 
     <!-- Preview Modal -->
-    <PreviewModal 
-      :visible="preview.visible"
-      :file-path="preview.file?.path"
-      :file-name="preview.file?.name"
-      :file-type="preview.file?.extension"
-      :mime-type="preview.file?.mime_type"
-      @close="preview.visible = false"
-      @open="openFile(preview.file)"
+    <PreviewModal
+        :visible="preview.visible"
+        :file-path="preview.file?.path"
+        :file-name="preview.file?.name"
+        :file-type="preview.file?.extension"
+        :mime-type="preview.file?.mime_type"
+        @close="preview.visible = false"
+        @open="openFile(preview.file)"
     />
 
     <!-- Tag Input Modal -->
     <div v-if="showTagInput" class="modal-backdrop" @click="showTagInput = false">
       <div class="modal modal-wide" @click.stop>
-        <h3>{{ targetFilesForTags.length > 1 ? t('library.editTagsMulti', { n: targetFilesForTags.length }) : t('library.editTags') }}</h3>
+        <h3>{{
+            targetFilesForTags.length > 1 ? t('library.editTagsMulti', {n: targetFilesForTags.length}) : t('library.editTags')
+          }}</h3>
         <div class="files-editor-list">
-          <FileTagEditor 
-            v-for="file in targetFilesForTags" 
-            :key="file.id" 
-            :file="file" 
+          <FileTagEditor
+              v-for="file in targetFilesForTags"
+              :key="file.id"
+              :file="file"
           />
         </div>
         <div class="modal-actions">
@@ -130,20 +134,20 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, reactive, onMounted, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { libraryStore, currentFiles, actions, getTagName, FileItem } from '../stores/library';
+import {ref, computed, reactive, onMounted, onUnmounted} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {libraryStore, currentFiles, actions, getTagName, FileItem} from '../stores/library';
 import ContextMenu from './ContextMenu.vue';
 import FilterPanel from './FilterPanel.vue';
 import PreviewModal from './PreviewModal.vue';
 import FileThumbnail from './FileThumbnail.vue';
 import FileTagEditor from './FileTagEditor.vue';
 
-const { t } = useI18n();
+const {t} = useI18n();
 
 function getTagColor(tagId: string) {
   const tag = libraryStore.tags.find(t => t.id === tagId);
-  if (!tag || !tag.group_id) return undefined; 
+  if (!tag || !tag.group_id) return undefined;
   const group = libraryStore.groups.find(g => g.id === tag.group_id);
   return group?.color || undefined;
 }
@@ -161,8 +165,8 @@ const lastSelectedId = ref<string | null>(null);
 const isSelecting = ref(false);
 const wasSelecting = ref(false); // To prevent click event after drag selection
 const shouldClearOnDrag = ref(false); // To handle delayed clearing when starting drag on item
-const selectionStart = ref({ x: 0, y: 0 });
-const selectionCurrent = ref({ x: 0, y: 0 });
+const selectionStart = ref({x: 0, y: 0});
+const selectionCurrent = ref({x: 0, y: 0});
 const fileContainerRef = ref<HTMLElement | null>(null);
 const fileItemRefs = ref<HTMLElement[]>([]);
 
@@ -187,7 +191,7 @@ function startSelection(e: MouseEvent) {
   const target = e.target as HTMLElement;
   // Allow selection on .file-item, but prevent on scrollbar
   if (target === fileContainerRef.value && e.offsetX > target.clientWidth) return;
-  
+
   if (e.button !== 0) return;
 
   const isCtrl = e.ctrlKey || e.metaKey;
@@ -214,7 +218,7 @@ function startSelection(e: MouseEvent) {
 
   isSelecting.value = false;
   wasSelecting.value = false;
-  
+
   const containerRect = fileContainerRef.value!.getBoundingClientRect();
   const scrollTop = fileContainerRef.value!.scrollTop;
   const scrollLeft = fileContainerRef.value!.scrollLeft;
@@ -222,8 +226,8 @@ function startSelection(e: MouseEvent) {
   const startX = e.clientX - containerRect.left + scrollLeft;
   const startY = e.clientY - containerRect.top + scrollTop;
 
-  selectionStart.value = { x: startX, y: startY };
-  selectionCurrent.value = { x: startX, y: startY };
+  selectionStart.value = {x: startX, y: startY};
+  selectionCurrent.value = {x: startX, y: startY};
 
   window.addEventListener('mousemove', onSelectionMove);
   window.addEventListener('mouseup', endSelection);
@@ -243,12 +247,12 @@ function onSelectionMove(e: MouseEvent) {
   let currentX = e.clientX - containerRect.left + scrollLeft;
   const currentY = e.clientY - containerRect.top + scrollTop;
 
-  selectionCurrent.value = { x: currentX, y: currentY };
+  selectionCurrent.value = {x: currentX, y: currentY};
 
   if (!isSelecting.value) {
     const dx = currentX - selectionStart.value.x;
     const dy = currentY - selectionStart.value.y;
-    if (Math.sqrt(dx*dx + dy*dy) > DRAG_THRESHOLD) {
+    if (Math.sqrt(dx * dx + dy * dy) > DRAG_THRESHOLD) {
       isSelecting.value = true;
       // If we delayed clearing (started on item without modifiers), do it now
       if (shouldClearOnDrag.value && !isAdditiveSelection.value) {
@@ -265,7 +269,7 @@ function onSelectionMove(e: MouseEvent) {
 
   const edgeThreshold = 50;
   const scrollSpeed = 10;
-  
+
   if (scrollInterval) clearInterval(scrollInterval);
   scrollInterval = null;
 
@@ -298,37 +302,37 @@ function updateSelection() {
   const containerRect = fileContainerRef.value.getBoundingClientRect();
   const scrollTop = fileContainerRef.value.scrollTop;
   const scrollLeft = fileContainerRef.value.scrollLeft;
-  
+
   // Calculate which items are currently in the selection rectangle
   const currentlyIntersecting = new Set<string>();
-  
+
   items.forEach((item, index) => {
     if (index >= filteredFiles.value.length) return;
-    
+
     const itemRect = item.getBoundingClientRect();
-    
+
     const itemLeft = itemRect.left - containerRect.left + scrollLeft;
     const itemTop = itemRect.top - containerRect.top + scrollTop;
     const itemRight = itemLeft + itemRect.width;
     const itemBottom = itemTop + itemRect.height;
 
-    const isIntersecting = !(rectLeft > itemRight || 
-                             rectRight < itemLeft || 
-                             rectTop > itemBottom || 
-                             rectBottom < itemTop);
+    const isIntersecting = !(rectLeft > itemRight ||
+        rectRight < itemLeft ||
+        rectTop > itemBottom ||
+        rectBottom < itemTop);
 
     if (isIntersecting) {
       currentlyIntersecting.add(filteredFiles.value[index].id);
     }
   });
-  
+
   // Apply selection based on mode
   let newSelection: Set<string>;
-  
+
   if (isAdditiveSelection.value) {
     // Additive mode (Ctrl held): toggle items in the intersection
     newSelection = new Set(selectionBaseAtStart.value);
-    
+
     // Toggle items based on current intersection
     currentlyIntersecting.forEach(id => {
       if (newSelection.has(id)) {
@@ -341,7 +345,7 @@ function updateSelection() {
     // Replacement mode: only currently intersecting items
     newSelection = currentlyIntersecting;
   }
-  
+
   libraryStore.ui.selectedFileIds = Array.from(newSelection);
 }
 
@@ -354,7 +358,7 @@ function endSelection() {
   shouldClearOnDrag.value = false;
   selectionBaseAtStart.value = new Set();
   isAdditiveSelection.value = false;
-  
+
   if (scrollInterval) {
     clearInterval(scrollInterval);
     scrollInterval = null;
@@ -375,21 +379,21 @@ const filteredFiles = computed(() => {
   // 1. Search
   if (libraryStore.ui.searchQuery) {
     const query = libraryStore.ui.searchQuery.toLowerCase();
-    result = result.filter(file => 
-      file.name.toLowerCase().includes(query) || 
-      file.extension.toLowerCase().includes(query)
+    result = result.filter(file =>
+        file.name.toLowerCase().includes(query) ||
+        file.extension.toLowerCase().includes(query)
     );
   }
 
   // 2. Filter by Type
   if (libraryStore.ui.filters.fileTypes.length > 0) {
-    result = result.filter(file => 
-      libraryStore.ui.filters.fileTypes.includes(file.extension)
+    result = result.filter(file =>
+        libraryStore.ui.filters.fileTypes.includes(file.extension)
     );
   }
 
   // 3. Filter by Tags (IDs)
-  const { tags } = libraryStore.ui.tagViewFilters;
+  const {tags} = libraryStore.ui.tagViewFilters;
   if (tags.length > 0) {
     const showUntagged = tags.includes('_untagged_');
     const selectedTagIds = tags.filter(t => t !== '_untagged_');
@@ -399,7 +403,7 @@ const filteredFiles = computed(() => {
       const matchesStandard = selectedTagIds.length > 0 && selectedTagIds.some(id => file.tag_ids.includes(id));
       // Or check if file has any CHILD tag of selected tags (hierarchical filtering) - Optional?
       // For now, strict match to selected ID.
-      
+
       const matchesUntagged = showUntagged && file.tag_ids.length === 0;
       return matchesStandard || matchesUntagged;
     });
@@ -408,7 +412,7 @@ const filteredFiles = computed(() => {
   // 4. Sort
   result.sort((a, b) => {
     let valA, valB;
-    
+
     switch (libraryStore.ui.sortConfig.by) {
       case 'name':
         valA = a.name.toLowerCase();
@@ -439,7 +443,7 @@ const filteredFiles = computed(() => {
 
 function resetFilters() {
   libraryStore.ui.filters.fileTypes = [];
-  libraryStore.ui.sortConfig = { by: 'added_at', order: 'desc' };
+  libraryStore.ui.sortConfig = {by: 'added_at', order: 'desc'};
 }
 
 // Selection Logic
@@ -463,7 +467,7 @@ function selectFile(file: FileItem, index: number, event: MouseEvent) {
     if (lastIndex !== -1) {
       const start = Math.min(index, lastIndex);
       const end = Math.max(index, lastIndex);
-      
+
       for (let i = start; i <= end; i++) {
         currentSelection.add(filteredFiles.value[i].id);
       }
@@ -524,7 +528,7 @@ function navigateSelection(key: string, shift: boolean) {
   // Find current focus
   let currentIndex = -1;
   const currentId = preview.visible && preview.file ? preview.file.id : (lastSelectedId.value || (libraryStore.ui.selectedFileIds.length > 0 ? libraryStore.ui.selectedFileIds[0] : null));
-  
+
   if (currentId) {
     currentIndex = files.findIndex(f => f.id === currentId);
   }
@@ -545,27 +549,27 @@ function navigateSelection(key: string, shift: boolean) {
 
   // Direction Logic
   const isPreview = preview.visible;
-  
+
   if (isPreview) {
-     // Preview Mode: Left/Up = Prev, Right/Down = Next
-     if (key === 'ArrowLeft' || key === 'ArrowUp') nextIndex--;
-     else if (key === 'ArrowRight' || key === 'ArrowDown') nextIndex++;
+    // Preview Mode: Left/Up = Prev, Right/Down = Next
+    if (key === 'ArrowLeft' || key === 'ArrowUp') nextIndex--;
+    else if (key === 'ArrowRight' || key === 'ArrowDown') nextIndex++;
   } else {
-     // Normal Mode
-     if (!isGrid) {
-        // List
-        if (key === 'ArrowUp' || key === 'ArrowLeft') nextIndex--;
-        else if (key === 'ArrowDown' || key === 'ArrowRight') nextIndex++;
-     } else {
-        // Grid
-        if (key === 'ArrowLeft') nextIndex--;
-        else if (key === 'ArrowRight') nextIndex++;
-        else if (key === 'ArrowUp' || key === 'ArrowDown') {
-           const cols = calculateGridColumns();
-           if (key === 'ArrowUp') nextIndex -= cols;
-           if (key === 'ArrowDown') nextIndex += cols;
-        }
-     }
+    // Normal Mode
+    if (!isGrid) {
+      // List
+      if (key === 'ArrowUp' || key === 'ArrowLeft') nextIndex--;
+      else if (key === 'ArrowDown' || key === 'ArrowRight') nextIndex++;
+    } else {
+      // Grid
+      if (key === 'ArrowLeft') nextIndex--;
+      else if (key === 'ArrowRight') nextIndex++;
+      else if (key === 'ArrowUp' || key === 'ArrowDown') {
+        const cols = calculateGridColumns();
+        if (key === 'ArrowUp') nextIndex -= cols;
+        if (key === 'ArrowDown') nextIndex += cols;
+      }
+    }
   }
 
   // Clamp
@@ -574,13 +578,13 @@ function navigateSelection(key: string, shift: boolean) {
 
   if (nextIndex !== currentIndex) {
     const target = files[nextIndex];
-    
+
     // Update Selection
     updateSelectionState(target.id, nextIndex, shift);
-    
+
     // Scroll
     scrollToItem(target.id);
-    
+
     // Update Preview if open
     if (isPreview) {
       preview.file = target;
@@ -597,7 +601,7 @@ function calculateGridColumns() {
   const itemWidth = 200 * cardScale;
   // Gap: 20px
   const gap = 20;
-  
+
   // Logic: N * w + (N-1) * gap <= available
   // N * (w + gap) - gap <= available
   // N * (w + gap) <= available + gap
@@ -611,7 +615,7 @@ function scrollToItem(id: string) {
   if (el) {
     // scrollIntoViewIfNeeded is non-standard but scrollIntoView is standard
     // block: 'nearest' ensures minimal scrolling
-    el.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    el.scrollIntoView({block: 'nearest', inline: 'nearest'});
   }
 }
 
@@ -620,12 +624,12 @@ function updateSelectionState(targetId: string, targetIndex: number, shift: bool
   if (shift && lastSelectedId.value) {
     const anchorId = lastSelectedId.value;
     const anchorIndex = filteredFiles.value.findIndex(f => f.id === anchorId);
-    
+
     if (anchorIndex !== -1) {
       const newSelection = new Set<string>();
       const start = Math.min(anchorIndex, targetIndex);
       const end = Math.max(anchorIndex, targetIndex);
-      
+
       for (let i = start; i <= end; i++) {
         newSelection.add(filteredFiles.value[i].id);
       }
@@ -659,7 +663,7 @@ onUnmounted(() => {
 // Context Menu
 const contextMenu = reactive({
   visible: false,
-  position: { x: 0, y: 0 },
+  position: {x: 0, y: 0},
   items: [] as { label: string, action: string }[],
   targetFile: null as FileItem | null
 });
@@ -672,33 +676,33 @@ function showContextMenu(e: MouseEvent, file: FileItem) {
   }
 
   contextMenu.targetFile = file;
-  contextMenu.position = { x: e.clientX, y: e.clientY };
-  
+  contextMenu.position = {x: e.clientX, y: e.clientY};
+
   const count = selectedFileIds.value.size;
   contextMenu.items = [];
 
-  contextMenu.items.push({ 
-    label: count > 1 ? t('library.contextEditTagsMulti', { n: count }) : t('library.contextEditTags'), 
-    action: 'tags' 
+  contextMenu.items.push({
+    label: count > 1 ? t('library.contextEditTagsMulti', {n: count}) : t('library.contextEditTags'),
+    action: 'tags'
   });
 
   if (count > 1) {
-    contextMenu.items.push({ label: t('library.deleteMulti', { n: count }), action: 'delete' });
+    contextMenu.items.push({label: t('library.deleteMulti', {n: count}), action: 'delete'});
   } else {
     contextMenu.items.push(
-      { label: t('library.open'), action: 'open' },
-      { label: t('library.openFileLocation'), action: 'reveal' },
-      { label: t('library.copyFile'), action: 'copy' },
-      { label: t('library.delete'), action: 'delete' }
+        {label: t('library.open'), action: 'open'},
+        {label: t('library.openFileLocation'), action: 'reveal'},
+        {label: t('library.copyFile'), action: 'copy'},
+        {label: t('library.delete'), action: 'delete'}
     );
   }
-  
+
   contextMenu.visible = true;
 }
 
 function handleMenuAction(action: string) {
   const file = contextMenu.targetFile;
-  
+
   switch (action) {
     case 'open':
       if (file) actions.openFile(file.path);
@@ -730,7 +734,6 @@ function openTagInput(file: FileItem) {
   }
   showTagInput.value = true;
 }
-
 
 
 // Preview
@@ -800,7 +803,7 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
   flex-direction: column;
   position: relative;
   overflow: hidden;
-  outline: none; 
+  outline: none;
 }
 
 .file-container {
@@ -902,9 +905,9 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
   padding: calc(2px * var(--card-scale)) calc(6px * var(--card-scale));
   border-radius: 4px;
   backdrop-filter: blur(4px);
-  box-shadow: 0 1px 2px rgba(0,0,0,0.2);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
   font-weight: 500;
-  border: 1px solid rgba(255,255,255,0.1); /* Subtle border */
+  border: 1px solid rgba(255, 255, 255, 0.1); /* Subtle border */
 }
 
 .file-info-row {
@@ -923,7 +926,7 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 .tag-badge-small {
   background: var(--bg-tertiary);
   color: var(--text-secondary);
-  font-size: min(calc(22* var(--card-scale)), 18px);
+  font-size: min(calc(22 * var(--card-scale)), 18px);
   padding: calc(2px * var(--card-scale)) calc(8px * var(--card-scale));
   border-radius: 999px; /* Pill shape */
   border: 1px solid var(--border-color);
@@ -970,8 +973,14 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
   white-space: nowrap;
 }
 
-.grid-item .file-name { padding: calc(12px * var(--card-scale)); text-align: center; }
-.list-item .file-name { flex: 1; }
+.grid-item .file-name {
+  padding: calc(12px * var(--card-scale));
+  text-align: center;
+}
+
+.list-item .file-name {
+  flex: 1;
+}
 
 .file-container {
   position: relative; /* Ensure selection rect is positioned relative to this */
@@ -988,8 +997,11 @@ async function onDropTagToFile(e: DragEvent, file: FileItem) {
 /* Modal Styles */
 .modal-backdrop {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;

@@ -1,14 +1,14 @@
 <template>
-  <div 
-    v-if="visible" 
-    class="context-menu" 
-    :style="{ top: `${position.y}px`, left: `${position.x}px` }"
+  <div
+      v-if="visible"
+      class="context-menu"
+      :style="{ top: `${position.y}px`, left: `${position.x}px` }"
   >
-    <div 
-      v-for="item in items" 
-      :key="item.label" 
-      class="menu-item"
-      @click="handleAction(item)"
+    <div
+        v-for="item in items"
+        :key="item.label"
+        class="menu-item"
+        @click="handleAction(item)"
     >
       {{ item.label }}
     </div>
@@ -17,7 +17,7 @@
 </template>
 
 <script setup lang="ts">
-import { PropType } from 'vue';
+import {PropType} from 'vue';
 
 interface MenuItem {
   label: string;
@@ -28,7 +28,7 @@ defineProps({
   visible: Boolean,
   position: {
     type: Object as PropType<{ x: number, y: number }>,
-    default: () => ({ x: 0, y: 0 })
+    default: () => ({x: 0, y: 0})
   },
   items: {
     type: Array as PropType<MenuItem[]>,

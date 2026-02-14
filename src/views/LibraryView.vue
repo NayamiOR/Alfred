@@ -1,35 +1,35 @@
 <template>
-  <div 
-    class="library-view" 
-    :class="{ 'sidebar-hidden': !isSidebarVisible, 'resizing': isResizing }"
-    :style="gridStyle"
+  <div
+      class="library-view"
+      :class="{ 'sidebar-hidden': !isSidebarVisible, 'resizing': isResizing }"
+      :style="gridStyle"
   >
-    <SideBar />
-    
+    <SideBar/>
+
     <!-- Resizer Handle -->
-    <div 
-      class="sidebar-resizer" 
-      v-show="isSidebarVisible"
-      @mousedown.prevent="startResizing"
+    <div
+        class="sidebar-resizer"
+        v-show="isSidebarVisible"
+        @mousedown.prevent="startResizing"
     ></div>
 
     <div class="main-content-wrapper">
-      <FileLibrary />
-      <GlobalDragOverlay 
-        :visible="libraryStore.ui.dragState.isDragging" 
-        :message="libraryStore.ui.dragState.message" 
-        :type="libraryStore.ui.dragState.type" 
+      <FileLibrary/>
+      <GlobalDragOverlay
+          :visible="libraryStore.ui.dragState.isDragging"
+          :message="libraryStore.ui.dragState.message"
+          :type="libraryStore.ui.dragState.type"
       />
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted } from 'vue';
+import {ref, onMounted, computed, onUnmounted} from 'vue';
 import FileLibrary from '../components/FileLibrary.vue';
 import SideBar from '../components/SideBar.vue';
 import GlobalDragOverlay from '../components/GlobalDragOverlay.vue';
-import { libraryStore } from '../stores/library';
+import {libraryStore} from '../stores/library';
 
 const isSidebarVisible = ref(true);
 const sidebarWidth = ref(Math.max(200, Number(localStorage.getItem('sidebarWidth')) || 200));
@@ -47,25 +47,25 @@ function startResizing() {
   if (container) {
     containerOffset.value = container.getBoundingClientRect().left;
   }
-  
+
   isResizing.value = true;
   document.body.style.cursor = 'col-resize';
   document.body.style.userSelect = 'none';
-  
+
   window.addEventListener('mousemove', handleMouseMove);
   window.addEventListener('mouseup', stopResizing);
 }
 
 function handleMouseMove(e: MouseEvent) {
   if (!isResizing.value) return;
-  
+
   // Calculate new width relative to window/grid
   let newWidth = e.clientX - containerOffset.value;
-  
+
   // Constraints
   if (newWidth < 200) newWidth = 200;
   if (newWidth > 600) newWidth = 600; // Reasonable max width
-  
+
   sidebarWidth.value = newWidth;
 }
 
@@ -73,9 +73,9 @@ function stopResizing() {
   isResizing.value = false;
   document.body.style.cursor = '';
   document.body.style.userSelect = '';
-  
+
   localStorage.setItem('sidebarWidth', String(sidebarWidth.value));
-  
+
   window.removeEventListener('mousemove', handleMouseMove);
   window.removeEventListener('mouseup', stopResizing);
 }

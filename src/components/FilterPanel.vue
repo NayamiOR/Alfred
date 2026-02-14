@@ -16,7 +16,8 @@
             <option value="size">{{ t('filter.size') }}</option>
             <option value="extension">{{ t('filter.type') }}</option>
           </select>
-          <button @click="toggleSortOrder" class="sort-order-btn" :title="sort.order === 'asc' ? t('filter.ascending') : t('filter.descending')">
+          <button @click="toggleSortOrder" class="sort-order-btn"
+                  :title="sort.order === 'asc' ? t('filter.ascending') : t('filter.descending')">
             {{ sort.order === 'asc' ? '↑' : '↓' }}
           </button>
         </div>
@@ -33,17 +34,17 @@
             <button @click="deselectAllTypes" class="text-btn">{{ t('filter.none') }}</button>
           </div>
         </div>
-        
+
         <div class="categories-list">
           <div v-for="cat in supportedCategories" :key="cat.key" class="category-group">
             <h5 class="category-title">{{ t(`filter.categories.${cat.key}`) }}</h5>
             <div class="checkbox-grid">
               <label v-for="type in cat.types" :key="type" class="filter-checkbox">
-                <input 
-                  type="checkbox" 
-                  :value="type" 
-                  :checked="selectedTypes.includes(type)"
-                  @change="toggleType(type)" 
+                <input
+                    type="checkbox"
+                    :value="type"
+                    :checked="selectedTypes.includes(type)"
+                    @change="toggleType(type)"
                 />
                 <span class="checkbox-label">
                   {{ type === 'folder' ? t('filter.formats.folder') : type }}
@@ -62,10 +63,10 @@
 </template>
 
 <script setup lang="ts">
-import { PropType } from 'vue';
-import { useI18n } from 'vue-i18n';
+import {PropType} from 'vue';
+import {useI18n} from 'vue-i18n';
 
-const { t } = useI18n();
+const {t} = useI18n();
 
 interface SortConfig {
   by: 'name' | 'added_at' | 'size' | 'extension';
@@ -84,12 +85,15 @@ const props = defineProps({
 });
 
 const supportedCategories = [
-  { key: 'image', types: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico'] },
-  { key: 'video', types: ['mp4', 'mkv', 'avi', 'mov', 'webm'] },
-  { key: 'audio', types: ['mp3', 'wav', 'ogg', 'flac', 'm4a'] },
-  { key: 'document', types: ['pdf', 'doc', 'docx', 'txt', 'md', 'markdown', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'json', 'xml', 'epub'] },
-  { key: 'archive', types: ['zip', 'rar', '7z', 'tar', 'gz'] },
-  { key: 'other', types: ['folder'] }
+  {key: 'image', types: ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico']},
+  {key: 'video', types: ['mp4', 'mkv', 'avi', 'mov', 'webm']},
+  {key: 'audio', types: ['mp3', 'wav', 'ogg', 'flac', 'm4a']},
+  {
+    key: 'document',
+    types: ['pdf', 'doc', 'docx', 'txt', 'md', 'markdown', 'xls', 'xlsx', 'ppt', 'pptx', 'rtf', 'csv', 'json', 'xml', 'epub']
+  },
+  {key: 'archive', types: ['zip', 'rar', '7z', 'tar', 'gz']},
+  {key: 'other', types: ['folder']}
 ];
 
 const allSupportedTypes = supportedCategories.flatMap(c => c.types);
@@ -98,26 +102,26 @@ const emit = defineEmits(['close', 'update:selectedTypes', 'update:sort', 'reset
 
 function updateSortBy(event: Event) {
   const target = event.target as HTMLSelectElement;
-  emit('update:sort', { ...props.sort, by: target.value });
+  emit('update:sort', {...props.sort, by: target.value});
 }
 
 function toggleSortOrder() {
-  emit('update:sort', { 
-    ...props.sort, 
-    order: props.sort.order === 'asc' ? 'desc' : 'asc' 
+  emit('update:sort', {
+    ...props.sort,
+    order: props.sort.order === 'asc' ? 'desc' : 'asc'
   });
 }
 
 function toggleType(type: string) {
   const newTypes = [...props.selectedTypes];
   const index = newTypes.indexOf(type);
-  
+
   if (index === -1) {
     newTypes.push(type);
   } else {
     newTypes.splice(index, 1);
   }
-  
+
   emit('update:selectedTypes', newTypes);
 }
 

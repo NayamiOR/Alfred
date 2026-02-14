@@ -3,7 +3,8 @@
     <button @click="minimize" class="control-btn minimize" :title="t('common.minimize')">
       <span>&#8722;</span>
     </button>
-    <button @click="toggleMaximize" class="control-btn maximize" :title="isMaximized ? t('common.restore') : t('common.maximize')">
+    <button @click="toggleMaximize" class="control-btn maximize"
+            :title="isMaximized ? t('common.restore') : t('common.maximize')">
       <span v-if="isMaximized">&#9723;</span>
       <span v-else>&#9723;</span>
     </button>
@@ -14,11 +15,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { getCurrentWindow } from '@tauri-apps/api/window';
+import {ref, onMounted, onUnmounted} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {getCurrentWindow} from '@tauri-apps/api/window';
 
-const { t } = useI18n();
+const {t} = useI18n();
 const appWindow = getCurrentWindow();
 const isMaximized = ref(false);
 let unlisten: (() => void) | null = null;
@@ -51,7 +52,7 @@ async function close() {
 onMounted(async () => {
   try {
     isMaximized.value = await appWindow.isMaximized();
-    
+
     // Listen for resize events to update maximized state
     unlisten = await appWindow.listen('tauri://resize', async () => {
       isMaximized.value = await appWindow.isMaximized();

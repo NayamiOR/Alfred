@@ -2,36 +2,37 @@
   <div class="file-thumbnail" ref="el">
     <!-- Folder -->
     <div v-if="file.extension === 'folder'" class="folder-icon">
-      <v-icon name="bi-folder" :scale="iconScale" />
+      <v-icon name="bi-folder" :scale="iconScale"/>
     </div>
-    
+
     <!-- Image / Thumbnail -->
-    <img 
-      v-else-if="thumbnailUrl && !error" 
-      :src="thumbnailUrl" 
-      class="thumbnail-img" 
-      :style="{ opacity: loading ? 0.5 : 1 }"
-      @error="onError"
+    <img
+        v-else-if="thumbnailUrl && !error"
+        :src="thumbnailUrl"
+        class="thumbnail-img"
+        :style="{ opacity: loading ? 0.5 : 1 }"
+        @error="onError"
     />
-    
+
     <!-- Fallback Icon based on extension/mime -->
     <div v-else class="cover-placeholder">
-      <v-icon :name="getFileIcon(file)" :scale="iconScale" />
+      <v-icon :name="getFileIcon(file)" :scale="iconScale"/>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue';
-import { FileItem, libraryStore } from '../stores/library';
-import { convertFileSrc, invoke } from '@tauri-apps/api/core';
-import { readFile } from '@tauri-apps/plugin-fs';
+import {ref, computed, onMounted, onUnmounted, watch} from 'vue';
+import {FileItem, libraryStore} from '../stores/library';
+import {convertFileSrc, invoke} from '@tauri-apps/api/core';
+import {readFile} from '@tauri-apps/plugin-fs';
 import * as pdfjsLib from 'pdfjs-dist';
 import Epub from 'epubjs';
-import { useThumbnailCache } from '../composables/useThumbnailCache';
+import {useThumbnailCache} from '../composables/useThumbnailCache';
 
 // Set up PDF.js worker
 import pdfWorker from 'pdfjs-dist/build/pdf.worker?url';
+
 pdfjsLib.GlobalWorkerOptions.workerSrc = pdfWorker;
 
 const props = defineProps<{
@@ -58,12 +59,12 @@ const extensionIconMap: Record<string, string> = {
   pptx: 'bi-filetype-pptx',
   txt: 'bi-filetype-txt',
   rtf: 'bi-filetype-txt',
-  
+
   // eBooks
   epub: 'bi-book-half',
   mobi: 'bi-book-half',
   azw3: 'bi-book-half',
-  
+
   // Code & Data
   json: 'bi-filetype-json',
   xml: 'bi-filetype-xml',
@@ -80,20 +81,20 @@ const extensionIconMap: Record<string, string> = {
   cs: 'bi-filetype-cs',
   yaml: 'bi-filetype-yml',
   yml: 'bi-filetype-yml',
-  
+
   // Fonts
   ttf: 'bi-filetype-ttf',
   otf: 'bi-filetype-ttf',
   woff: 'bi-filetype-ttf',
   woff2: 'bi-filetype-ttf',
-  
+
   // Archives
   zip: 'bi-file-earmark-zip',
   rar: 'bi-file-earmark-zip',
   '7z': 'bi-file-earmark-zip',
   tar: 'bi-file-earmark-zip',
   gz: 'bi-file-earmark-zip',
-  
+
   // Executables
   exe: 'bi-filetype-exe',
   msi: 'bi-filetype-exe',
@@ -105,12 +106,12 @@ const extensionIconMap: Record<string, string> = {
 
 function getFileIcon(file: FileItem): string {
   const ext = file.extension.toLowerCase();
-  
+
   // Check extension map first
   if (extensionIconMap[ext]) {
     return extensionIconMap[ext];
   }
-  
+
   // Fallback to mime type
   if (file.mime_type.startsWith('image/')) {
     return 'bi-file-earmark-image';
@@ -124,7 +125,7 @@ function getFileIcon(file: FileItem): string {
   if (file.mime_type.startsWith('text/')) {
     return 'bi-file-earmark-text';
   }
-  
+
   // Default
   return 'bi-file-earmark';
 }
@@ -141,26 +142,26 @@ function onError() {
 
 async function generatePdfThumbnail(filePath: string, fileSize: number, modifiedTime: number): Promise<string> {
   const cache = useThumbnailCache();
-  
+
   // Check cache first
   const cached = await cache.getThumbnail(filePath, fileSize, modifiedTime);
   if (cached) {
     return cached;
   }
-  
+
   const url = convertFileSrc(filePath);
   const loadingTask = pdfjsLib.getDocument(url);
   const pdf = await loadingTask.promise;
   const page = await pdf.getPage(1);
-  
-  const viewport = page.getViewport({ scale: 1 });
+
+  const viewport = page.getViewport({scale: 1});
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
-  
+
   // Calculate scale to fit 320px (matches backend logic)
   const MAX_SIZE = 320;
   const scale = Math.min(MAX_SIZE / viewport.width, MAX_SIZE / viewport.height);
-  const scaledViewport = page.getViewport({ scale });
+  const scaledViewport = page.getViewport({scale});
 
   canvas.width = scaledViewport.width;
   canvas.height = scaledViewport.height;
@@ -174,10 +175,10 @@ async function generatePdfThumbnail(filePath: string, fileSize: number, modified
   }).promise;
 
   const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
-  
+
   // Save to cache
   await cache.setThumbnail(filePath, fileSize, modifiedTime, dataUrl);
-  
+
   return dataUrl;
 }
 
@@ -202,7 +203,7 @@ async function generateEpubThumbnail(filePath: string): Promise<string> {
 
 async function loadThumbnail() {
   if (loading.value || thumbnailUrl.value || error.value) return;
-  
+
   if (props.file.mime_type.startsWith('image/')) {
     thumbnailUrl.value = convertFileSrc(props.file.path);
     return;
@@ -213,7 +214,7 @@ async function loadThumbnail() {
     loading.value = true;
     try {
       // Use file size and modified time from file metadata
-      const fileInfo = await invoke<{size: number, modifiedTime: number}>('get_file_info', { path: props.file.path });
+      const fileInfo = await invoke<{ size: number, modifiedTime: number }>('get_file_info', {path: props.file.path});
       thumbnailUrl.value = await generatePdfThumbnail(props.file.path, fileInfo.size, fileInfo.modifiedTime);
     } catch (e) {
       console.error('Failed to generate PDF thumbnail:', e);
@@ -246,7 +247,7 @@ async function loadThumbnail() {
 
   loading.value = true;
   try {
-    const path = await invoke<string>('get_file_thumbnail', { fileId: props.file.id });
+    const path = await invoke<string>('get_file_thumbnail', {fileId: props.file.id});
     thumbnailUrl.value = convertFileSrc(path);
   } catch (e) {
     // console.error('Failed to load thumbnail:', e);

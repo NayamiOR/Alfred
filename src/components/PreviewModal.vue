@@ -1,23 +1,23 @@
 <template>
   <div v-if="visible" class="preview-modal" @click.self="$emit('close')">
     <div class="modal-content" :class="{ 'doc-content': isDocument || isCode }">
-      
+
       <!-- Loading State -->
       <div v-if="loading" class="loading-state">
-        <v-icon name="fa-spinner" animation="spin" scale="2" />
+        <v-icon name="fa-spinner" animation="spin" scale="2"/>
         <span>{{ t('library.loading') }}</span>
       </div>
 
       <!-- Error State -->
       <div v-else-if="error" class="error-state">
-        <v-icon name="md-erroroutline" scale="3" />
+        <v-icon name="md-erroroutline" scale="3"/>
         <p>{{ error }}</p>
         <button @click="$emit('open')">{{ t('library.openFile') }}</button>
       </div>
 
       <!-- Image -->
       <div v-else-if="isImage" class="preview-image">
-        <img :src="fileUrl" alt="Preview" />
+        <img :src="fileUrl" alt="Preview"/>
       </div>
 
       <!-- Video -->
@@ -39,7 +39,7 @@
       <div v-else-if="isDocx" class="preview-docx" ref="docxContainer">
         <!-- Loading state overlay for DOCX -->
         <div v-if="loading" class="docx-loading-state">
-          <v-icon name="fa-spinner" animation="spin" scale="2" />
+          <v-icon name="fa-spinner" animation="spin" scale="2"/>
           <span>{{ t('library.loading') }}</span>
         </div>
       </div>
@@ -51,16 +51,16 @@
       <div v-else-if="isEpub" class="preview-epub" @wheel.prevent="handleEpubWheel">
         <!-- Loading state overlay for EPUB -->
         <div v-if="loading" class="epub-loading-state">
-          <v-icon name="fa-spinner" animation="spin" scale="2" />
+          <v-icon name="fa-spinner" animation="spin" scale="2"/>
           <span>{{ t('library.loading') }}</span>
         </div>
         <div class="epub-container" ref="epubContainer"></div>
         <div class="epub-controls">
           <button @click.stop="epubPrev" class="nav-btn prev" title="Previous Page">
-            <v-icon name="co-caret-left" scale="2" />
+            <v-icon name="co-caret-left" scale="2"/>
           </button>
           <button @click.stop="epubNext" class="nav-btn next" title="Next Page">
-            <v-icon name="co-caret-right" scale="2" />
+            <v-icon name="co-caret-right" scale="2"/>
           </button>
         </div>
       </div>
@@ -68,9 +68,9 @@
       <!-- Generic Fallback -->
       <div v-else class="preview-generic">
         <div class="icon">
-          <v-icon v-if="mimeType.startsWith('audio/')" name="fc-audio-file" scale="4" />
-          <v-icon v-else-if="isDocument" name="fc-document" scale="4" />
-          <v-icon v-else name="fc-file" scale="4" />
+          <v-icon v-if="mimeType.startsWith('audio/')" name="fc-audio-file" scale="4"/>
+          <v-icon v-else-if="isDocument" name="fc-document" scale="4"/>
+          <v-icon v-else name="fc-file" scale="4"/>
         </div>
         <div class="filename">{{ fileName }}</div>
         <div class="hint">{{ t('library.previewNotAvailable') }}</div>
@@ -82,15 +82,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onUnmounted } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { convertFileSrc } from '@tauri-apps/api/core';
-import { readFile, readTextFile } from '@tauri-apps/plugin-fs';
-import { renderAsync } from 'docx-preview';
+import {ref, computed, watch, nextTick, onUnmounted} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {convertFileSrc} from '@tauri-apps/api/core';
+import {readFile, readTextFile} from '@tauri-apps/plugin-fs';
+import {renderAsync} from 'docx-preview';
 import * as XLSX from 'xlsx';
 import Epub from 'epubjs';
 
-const { t } = useI18n();
+const {t} = useI18n();
 
 const props = defineProps({
   visible: Boolean,
@@ -121,14 +121,20 @@ let waitingForEpubContainer = false;
 // Define types for epubjs internally since we can't import types easily in Vue SFC without issues sometimes
 interface Book {
   renderTo(element: HTMLElement | string, options?: any): Rendition;
+
   destroy(): void;
+
   ready: Promise<void>;
   locations: any;
 }
+
 interface Rendition {
   display(target?: string): Promise<void>;
+
   prev(): void;
+
   next(): void;
+
   on(event: string, cb: Function): void;
 }
 
@@ -239,10 +245,10 @@ async function loadContent() {
       }
     } else if (isXlsx.value) {
       const data = await readFile(props.filePath);
-      const workbook = XLSX.read(data, { type: 'array' });
+      const workbook = XLSX.read(data, {type: 'array'});
       const firstSheetName = workbook.SheetNames[0];
       const worksheet = workbook.Sheets[firstSheetName];
-      xlsxContent.value = XLSX.utils.sheet_to_html(worksheet, { id: 'excel-table' });
+      xlsxContent.value = XLSX.utils.sheet_to_html(worksheet, {id: 'excel-table'});
     } else if (isEpub.value) {
       // Check if epubContainer is available
       if (epubContainer.value) {
@@ -342,7 +348,7 @@ async function loadEpub() {
         iframe.contentWindow.addEventListener('wheel', (e: WheelEvent) => {
           e.preventDefault();
           handleEpubWheel(e);
-        }, { passive: false });
+        }, {passive: false});
       }
     });
 
@@ -367,7 +373,7 @@ function epubNext() {
 
 function handleEpubWheel(e: WheelEvent) {
   if (!epubRendition) return;
-  
+
   // deltaY > 0 means scroll down → next page
   // deltaY < 0 means scroll up → prev page
   if (e.deltaY > 0) {
@@ -417,7 +423,7 @@ function handleEpubWheel(e: WheelEvent) {
   max-width: 100%;
   max-height: 90vh;
   border-radius: 8px;
-  box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
 }
 
 .preview-pdf {
@@ -484,6 +490,7 @@ function handleEpubWheel(e: WheelEvent) {
   border-collapse: collapse;
   width: 100%;
 }
+
 :deep(td), :deep(th) {
   border: 1px solid #ccc;
   padding: 4px 8px;
@@ -513,10 +520,10 @@ function handleEpubWheel(e: WheelEvent) {
 }
 
 .loading-state, .error-state {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 16px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
 }
 
 .preview-generic .icon {

@@ -4,9 +4,9 @@
       <div v-if="libraryStore.tags.length === 0 && libraryStore.groups.length === 0" class="empty-state">
         {{ t('tagManage.noTags') }}
       </div>
-      
+
       <div v-else class="tree-container">
-        
+
         <!-- Groups -->
         <div v-for="group in libraryStore.groups" :key="group.id" class="group-block">
           <div class="group-row">
@@ -80,13 +80,13 @@
     <div v-if="libraryStore.ui.tagGroupModal.visible" class="modal-backdrop" @click="closeGroupModal">
       <div class="modal" @click.stop>
         <h3>{{ libraryStore.ui.tagGroupModal.isEdit ? 'Edit Group' : 'Create Group' }}</h3>
-        
+
         <label class="input-label">Group Name</label>
-        <input v-model="libraryStore.ui.tagGroupModal.name" class="input-field" />
-        
+        <input v-model="libraryStore.ui.tagGroupModal.name" class="input-field"/>
+
         <label class="input-label">Color (Hex)</label>
-        <input v-model="libraryStore.ui.tagGroupModal.color" placeholder="#RRGGBB" class="input-field" />
-        
+        <input v-model="libraryStore.ui.tagGroupModal.color" placeholder="#RRGGBB" class="input-field"/>
+
         <div class="modal-actions">
           <button @click="closeGroupModal">Cancel</button>
           <button @click="saveGroup" class="primary">Save</button>
@@ -98,8 +98,8 @@
     <div v-if="tagModal.visible" class="modal-backdrop" @click="closeTagModal">
       <div class="modal" @click.stop>
         <h3>{{ tagModal.isEdit ? 'Edit Tag' : 'Create Tag' }}</h3>
-        <input v-model="tagModal.name" :placeholder="t('tagManage.tagNamePlaceholder')" class="input-field" />
-        
+        <input v-model="tagModal.name" :placeholder="t('tagManage.tagNamePlaceholder')" class="input-field"/>
+
         <label>Group:</label>
         <select v-model="tagModal.groupId" class="input-field">
           <option :value="null">None</option>
@@ -136,23 +136,26 @@
 </template>
 
 <script setup lang="ts">
-import { reactive } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { libraryStore, actions, Tag, TagGroup } from '../stores/library';
-import { notify } from '../stores/notification';
+import {reactive} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {libraryStore, actions, Tag, TagGroup} from '../stores/library';
+import {notify} from '../stores/notification';
 
-const { t } = useI18n();
+const {t} = useI18n();
 
 // Helpers
 function getGroupTags(groupId: string) {
   return libraryStore.tags.filter(t => t.group_id === groupId && !t.parent_id);
 }
+
 function getUngroupedRootTags() {
   return libraryStore.tags.filter(t => !t.group_id && !t.parent_id);
 }
+
 function getChildTags(parentId: string) {
   return libraryStore.tags.filter(t => t.parent_id === parentId);
 }
+
 function getFileCount(tagId: string) {
   return libraryStore.files.filter(f => f.tag_ids.includes(tagId)).length;
 }
@@ -173,19 +176,19 @@ function closeGroupModal() {
 async function saveGroup() {
   const modalState = libraryStore.ui.tagGroupModal;
   if (!modalState.name) return;
-  
+
   // Validate duplicate name
   const trimmedName = modalState.name.trim();
-  const duplicate = libraryStore.groups.find(g => 
-    g.name.toLowerCase() === trimmedName.toLowerCase() && 
-    g.id !== modalState.id
+  const duplicate = libraryStore.groups.find(g =>
+      g.name.toLowerCase() === trimmedName.toLowerCase() &&
+      g.id !== modalState.id
   );
 
   if (duplicate) {
     notify(t('tagManage.duplicateGroupError'), 'error');
     return;
   }
-  
+
   // Validate color
   const color = modalState.color ? modalState.color.trim() : null;
   if (color) {
@@ -277,7 +280,7 @@ async function saveTag() {
         await actions.moveTag(tagModal.id, tagModal.parentId, tagModal.groupId);
       }
     }
-  } 
+  }
   // Removed create logic from here as entry point is removed, but keeping function structure for edit
   closeTagModal();
 }
@@ -412,8 +415,11 @@ async function deleteTag(id: string) {
 /* Modal */
 .modal-backdrop {
   position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0,0,0,0.5);
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
   display: flex;
   align-items: center;
   justify-content: center;

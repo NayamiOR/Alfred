@@ -18,19 +18,19 @@
           <span class="setting-desc">{{ t('settings.globalScale.desc') }}</span>
         </div>
         <div class="scale-control">
-          <input 
-            type="range" 
-            v-model.number="localGlobalScale" 
-            min="0.8"
-            max="1.3" 
-            step="0.1"
-            class="scale-slider"
-            @change="handleScaleChange"
+          <input
+              type="range"
+              v-model.number="localGlobalScale"
+              min="0.8"
+              max="1.3"
+              step="0.1"
+              class="scale-slider"
+              @change="handleScaleChange"
           />
           <span class="scale-value">{{ localGlobalScale.toFixed(1) }}x</span>
         </div>
       </div>
-      
+
       <div class="setting-item">
         <div class="setting-info">
           <span class="setting-label">{{ t('settings.autostart.label') }}</span>
@@ -43,22 +43,22 @@
       </div>
     </div>
 
-    <GlobalDragOverlay 
-      :visible="libraryStore.ui.dragState.isDragging" 
-      :message="libraryStore.ui.dragState.message" 
-      :type="libraryStore.ui.dragState.type" 
+    <GlobalDragOverlay
+        :visible="libraryStore.ui.dragState.isDragging"
+        :message="libraryStore.ui.dragState.message"
+        :type="libraryStore.ui.dragState.type"
     />
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { isEnabled, enable, disable } from '@tauri-apps/plugin-autostart';
-import { libraryStore } from '../stores/library';
+import {ref, onMounted, watch} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {isEnabled, enable, disable} from '@tauri-apps/plugin-autostart';
+import {libraryStore} from '../stores/library';
 import GlobalDragOverlay from '../components/GlobalDragOverlay.vue';
 
-const { t, locale } = useI18n();
+const {t, locale} = useI18n();
 const isAutoStartEnabled = ref(false);
 // Local ref for deferred update
 const localGlobalScale = ref(libraryStore.ui.globalScale);

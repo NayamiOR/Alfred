@@ -1,9 +1,9 @@
 <template>
   <div class="notification-toast" :class="notification.type" @click="close">
     <div class="icon">
-      <v-icon v-if="notification.type === 'success'" name="co-check" scale="1" />
-      <v-icon v-else-if="notification.type === 'error'" name="co-warning" scale="1" />
-      <v-icon v-else name="co-info" scale="1" />
+      <v-icon v-if="notification.type === 'success'" name="co-check" scale="1"/>
+      <v-icon v-else-if="notification.type === 'error'" name="co-warning" scale="1"/>
+      <v-icon v-else name="co-info" scale="1"/>
     </div>
     <div class="message">{{ notification.message }}</div>
     <button class="close-btn">&times;</button>
@@ -11,8 +11,8 @@
 </template>
 
 <script setup lang="ts">
-import { PropType } from 'vue';
-import { Notification, removeNotification } from '../stores/notification';
+import {PropType} from 'vue';
+import {Notification, removeNotification} from '../stores/notification';
 // Ensure oh-vue-icons are imported in main.ts, specifically these ones.
 // I'll assume CoCheck, CoWarning, CoInfo are available or I'll use text.
 // Actually main.ts has CoInbox, CoSettings etc. I might need to add Check icon.
@@ -53,6 +53,7 @@ function close() {
 .notification-toast.success {
   border-left-color: #10b981;
 }
+
 .notification-toast.success .icon {
   color: #10b981;
 }
@@ -60,6 +61,7 @@ function close() {
 .notification-toast.warning {
   border-left-color: #f59e0b;
 }
+
 .notification-toast.warning .icon {
   color: #f59e0b;
 }
@@ -67,6 +69,7 @@ function close() {
 .notification-toast.error {
   border-left-color: #ef4444;
 }
+
 .notification-toast.error .icon {
   color: #ef4444;
 }
@@ -74,6 +77,7 @@ function close() {
 .notification-toast.info {
   border-left-color: #3b82f6;
 }
+
 .notification-toast.info .icon {
   color: #3b82f6;
 }

@@ -1,7 +1,7 @@
+mod cache;
 mod models;
 #[cfg(target_os = "windows")]
 mod thumbnail;
-mod cache;
 
 use chrono::Utc;
 use mime_guess::from_path;
@@ -11,6 +11,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::path::Path;
 use std::process::Command;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::{MouseButton, TrayIconBuilder, TrayIconEvent},
@@ -18,7 +19,6 @@ use tauri::{
 };
 use tauri_plugin_fs::FsExt;
 use uuid::Uuid;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 // Global atomic counter for thumbnail generation (max 4 concurrent)
 static THUMBNAIL_COUNTER: AtomicUsize = AtomicUsize::new(0);
@@ -155,26 +155,29 @@ fn add_files(
 fn delete_files(ids: Vec<String>, state: State<AppState>, app: tauri::AppHandle) {
     let mut data = state.data.lock().unwrap();
     let id_set: HashSet<_> = ids.clone().into_iter().collect();
-    
+
     // Clean up thumbnails for deleted files
-    let app_data_dir = app.path().app_data_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let app_data_dir = app
+        .path()
+        .app_data_dir()
+        .unwrap_or_else(|_| std::path::PathBuf::from("."));
     let thumb_dir = app_data_dir.join("thumbnails");
     let cache_path = thumb_dir.clone();
-    
+
     // Remove thumbnails and update cache
     for file_id in &ids {
         let thumb_path = thumb_dir.join(format!("{}.jpg", file_id));
         if thumb_path.exists() {
             let _ = std::fs::remove_file(&thumb_path);
         }
-        
+
         // Update cache metadata
         if let Ok(mut cache) = cache::ThumbnailCache::new(&cache_path) {
             cache.remove_metadata(file_id);
             let _ = cache.save();
         }
     }
-    
+
     data.files.retain(|f| !id_set.contains(&f.id));
     save_to_disk(&data, &state.file_path);
 }
@@ -360,12 +363,13 @@ fn show_in_explorer(path: String) -> Result<(), String> {
 fn get_file_info(path: String) -> Result<serde_json::Value, String> {
     let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
     let size = metadata.len();
-    let modified_time = metadata.modified()
+    let modified_time = metadata
+        .modified()
         .map_err(|e| e.to_string())?
         .duration_since(std::time::UNIX_EPOCH)
         .map_err(|e| format!("Invalid modified time: {}", e))?
         .as_secs() as i64;
-    
+
     Ok(serde_json::json!({
         "size": size,
         "modifiedTime": modified_time
@@ -404,7 +408,11 @@ async fn get_file_thumbnail(
     {
         let (input_path, thumbnail_path, thumb_dir) = {
             let data = state.data.lock().unwrap();
-            let file = data.files.iter().find(|f| f.id == file_id).ok_or("File not found")?;
+            let file = data
+                .files
+                .iter()
+                .find(|f| f.id == file_id)
+                .ok_or("File not found")?;
             let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
             let thumb_dir = app_data_dir.join("thumbnails");
             if !thumb_dir.exists() {
@@ -418,7 +426,8 @@ async fn get_file_thumbnail(
         let file_metadata = std::fs::metadata(&input_path)
             .map_err(|e| format!("Failed to get file metadata: {}", e))?;
         let file_size = file_metadata.len();
-        let modified_time = file_metadata.modified()
+        let modified_time = file_metadata
+            .modified()
             .map_err(|e| format!("Failed to get modified time: {}", e))?
             .duration_since(std::time::UNIX_EPOCH)
             .map_err(|e| format!("Invalid modified time: {}", e))?
@@ -517,10 +526,10 @@ pub fn run() {
                     let thumb_dir = app_data_dir.join("thumbnails");
                     let state_guard = app.state::<AppState>();
                     let data = state_guard.data.lock().unwrap();
-                    
+
                     // Get list of valid file IDs
                     let valid_ids: Vec<String> = data.files.iter().map(|f| f.id.clone()).collect();
-                    
+
                     // Clean up orphaned thumbnails
                     if let Ok(cache) = cache::ThumbnailCache::new(&thumb_dir) {
                         let _ = cache.cleanup_orphaned_thumbnails(&thumb_dir, &valid_ids, 100);

@@ -3,23 +3,24 @@
     <button @click="goBack" class="back-btn" data-tauri-drag-region="false">
       ← {{ t('tagManage.back') }}
     </button>
-    
+
     <div class="title">{{ t('tagManage.title') }}</div>
-    
+
     <div class="spacer"></div>
 
     <button @click="openCreateGroup" class="action-btn create" data-tauri-drag-region="false">
-      <v-icon name="co-plus" scale="0.8" /> {{ t('tagManage.addGroup') }}
+      <v-icon name="co-plus" scale="0.8"/>
+      {{ t('tagManage.addGroup') }}
     </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
-import { libraryStore } from '../../stores/library';
+import {useI18n} from 'vue-i18n';
+import {useRouter} from 'vue-router';
+import {libraryStore} from '../../stores/library';
 
-const { t } = useI18n();
+const {t} = useI18n();
 const router = useRouter();
 
 function goBack() {

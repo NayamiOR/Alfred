@@ -23,18 +23,26 @@ declare module 'epubjs' {
 
     export class Book {
         constructor(url: string | ArrayBuffer, options?: BookOptions);
+
         renderTo(element: string | HTMLElement, options?: RenditionOptions): Rendition;
+
         coverUrl(): Promise<string | null>;
+
         destroy(): void;
+
         ready: Promise<void>;
         locations: Locations;
     }
 
     export class Rendition {
         display(target?: string): Promise<void>;
+
         next(): Promise<void>;
+
         prev(): Promise<void>;
+
         on(event: string, callback: (args: any) => void): void;
+
         destroy(): void;
     }
 
@@ -43,5 +51,6 @@ declare module 'epubjs' {
     }
 
     function ePub(url: string | ArrayBuffer, options?: BookOptions): Book;
+
     export default ePub;
 }

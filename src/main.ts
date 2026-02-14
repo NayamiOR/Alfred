@@ -60,7 +60,7 @@ import {
 const app = createApp(App);
 
 addIcons(
-    PxArchive, CoSearch, CoHamburgerMenu, CoInbox, CoSettings, 
+    PxArchive, CoSearch, CoHamburgerMenu, CoInbox, CoSettings,
     CoTags, CoSun, CoMoon, CoExpandRight, CoPlus, CoCheck, CoWarning, CoInfo,
     FcVideoFile, FcAudioFile, FcFile, FcImageFile, FcFolder, FcDocument,
     FaSpinner, CoCaretLeft, CoCaretRight, MdClose,
@@ -81,12 +81,12 @@ app.component("v-icon", OhVueIcon);
 
 // Disable context menu globally, except for inputs
 document.addEventListener('contextmenu', (event) => {
-  const target = event.target as HTMLElement;
-  const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
-  
-  if (!isInput) {
-    event.preventDefault();
-  }
+    const target = event.target as HTMLElement;
+    const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.isContentEditable;
+
+    if (!isInput) {
+        event.preventDefault();
+    }
 });
 
 app.mount("#app");
