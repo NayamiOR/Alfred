@@ -1,0 +1,14 @@
+<svg width="128" height="128" viewBox="0 0 128 128" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 
+     InchBox 托盘专用图标 
+     特点：无背景、高对比度、线条加粗、撑满画布
+  -->
+  <!-- 左括号 [ -->
+  <!-- 这里的 stroke-width 设为了 14，保证缩小后也能看清 -->
+  <path d="M42 12 H 16 V 116 H 42" stroke="#8FD14F" stroke-width="14" stroke-linecap="square" stroke-linejoin="miter"/>
+  <!-- 右括号 ] -->
+  <path d="M86 12 H 112 V 116 H 86" stroke="#8FD14F" stroke-width="14" stroke-linecap="square" stroke-linejoin="miter"/>
+  <!-- 中间 I -->
+  <!-- 稍微加宽了中间的竖条 -->
+  <rect x="54" y="32" width="20" height="64" rx="8" fill="#8FD14F"/>
+</svg>
