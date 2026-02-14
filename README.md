@@ -2,6 +2,8 @@
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
+[![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
+
 一个基于 Tauri + Vue 3 构建的高性能桌面文件管理应用，专注于提供结构化的文件组织与多维度的检索体验。
 
 <!-- TODO: 添加应用主界面截图，推荐路径：docs/screenshots/main-ui.png -->

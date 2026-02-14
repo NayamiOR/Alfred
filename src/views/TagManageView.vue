@@ -143,6 +143,7 @@ import {notify} from '../stores/notification';
 
 const {t} = useI18n();
 
+
 // Helpers
 function getGroupTags(groupId: string) {
   return libraryStore.tags.filter(t => t.group_id === groupId && !t.parent_id);
