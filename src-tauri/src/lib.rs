@@ -1,6 +1,7 @@
 mod models;
 #[cfg(target_os = "windows")]
 mod thumbnail;
+mod cache;
 
 use chrono::Utc;
 use mime_guess::from_path;
@@ -17,6 +18,11 @@ use tauri::{
 };
 use tauri_plugin_fs::FsExt;
 use uuid::Uuid;
+use std::sync::atomic::{AtomicUsize, Ordering};
+
+// Global atomic counter for thumbnail generation (max 4 concurrent)
+static THUMBNAIL_COUNTER: AtomicUsize = AtomicUsize::new(0);
+const MAX_CONCURRENT_THUMBNAILS: usize = 4;
 
 // i18n
 use i18n_embed::{fluent::FluentLanguageLoader, DesktopLanguageRequester, LanguageRequester};
@@ -146,9 +152,29 @@ fn add_files(
 }
 
 #[tauri::command]
-fn delete_files(ids: Vec<String>, state: State<AppState>) {
+fn delete_files(ids: Vec<String>, state: State<AppState>, app: tauri::AppHandle) {
     let mut data = state.data.lock().unwrap();
-    let id_set: HashSet<_> = ids.into_iter().collect();
+    let id_set: HashSet<_> = ids.clone().into_iter().collect();
+    
+    // Clean up thumbnails for deleted files
+    let app_data_dir = app.path().app_data_dir().unwrap_or_else(|_| std::path::PathBuf::from("."));
+    let thumb_dir = app_data_dir.join("thumbnails");
+    let cache_path = thumb_dir.clone();
+    
+    // Remove thumbnails and update cache
+    for file_id in &ids {
+        let thumb_path = thumb_dir.join(format!("{}.jpg", file_id));
+        if thumb_path.exists() {
+            let _ = std::fs::remove_file(&thumb_path);
+        }
+        
+        // Update cache metadata
+        if let Ok(mut cache) = cache::ThumbnailCache::new(&cache_path) {
+            cache.remove_metadata(file_id);
+            let _ = cache.save();
+        }
+    }
+    
     data.files.retain(|f| !id_set.contains(&f.id));
     save_to_disk(&data, &state.file_path);
 }
@@ -331,6 +357,22 @@ fn show_in_explorer(path: String) -> Result<(), String> {
 }
 
 #[tauri::command]
+fn get_file_info(path: String) -> Result<serde_json::Value, String> {
+    let metadata = std::fs::metadata(&path).map_err(|e| e.to_string())?;
+    let size = metadata.len();
+    let modified_time = metadata.modified()
+        .map_err(|e| e.to_string())?
+        .duration_since(std::time::UNIX_EPOCH)
+        .map_err(|e| format!("Invalid modified time: {}", e))?
+        .as_secs() as i64;
+    
+    Ok(serde_json::json!({
+        "size": size,
+        "modifiedTime": modified_time
+    }))
+}
+
+#[tauri::command]
 fn copy_file_to_clipboard(path: String) -> Result<(), String> {
     #[cfg(target_os = "windows")]
     {
@@ -360,7 +402,7 @@ async fn get_file_thumbnail(
 ) -> Result<String, String> {
     #[cfg(target_os = "windows")]
     {
-        let (input_path, thumbnail_path) = {
+        let (input_path, thumbnail_path, thumb_dir) = {
             let data = state.data.lock().unwrap();
             let file = data.files.iter().find(|f| f.id == file_id).ok_or("File not found")?;
             let app_data_dir = app.path().app_data_dir().map_err(|e| e.to_string())?;
@@ -369,17 +411,48 @@ async fn get_file_thumbnail(
                 std::fs::create_dir_all(&thumb_dir).map_err(|e| e.to_string())?;
             }
             let thumb_path = thumb_dir.join(format!("{}.jpg", file_id));
-            (file.path.clone(), thumb_path)
+            (file.path.clone(), thumb_path, thumb_dir)
         };
 
-        if !thumbnail_path.exists() {
+        // Get file metadata for cache validation
+        let file_metadata = std::fs::metadata(&input_path)
+            .map_err(|e| format!("Failed to get file metadata: {}", e))?;
+        let file_size = file_metadata.len();
+        let modified_time = file_metadata.modified()
+            .map_err(|e| format!("Failed to get modified time: {}", e))?
+            .duration_since(std::time::UNIX_EPOCH)
+            .map_err(|e| format!("Invalid modified time: {}", e))?
+            .as_secs() as i64;
+
+        // Check cache validity
+        let cache_valid = {
+            if let Ok(cache) = cache::ThumbnailCache::new(&thumb_dir) {
+                cache.is_valid(&file_id, Path::new(&input_path), file_size, modified_time)
+            } else {
+                false
+            }
+        };
+
+        if !cache_valid {
+            // Simple limit: if too many concurrent, just proceed (spawn_blocking has its own limits)
+            // For better control, consider using a proper async semaphore crate
             let input = input_path.clone();
             let output = thumbnail_path.clone();
-            tauri::async_runtime::spawn_blocking(move || {
+            let result = tauri::async_runtime::spawn_blocking(move || {
                 thumbnail::generate_thumbnail(Path::new(&input), &output, 320)
             })
             .await
-            .map_err(|e| e.to_string())??;
+            .map_err(|e| e.to_string())?;
+
+            if let Err(e) = result {
+                return Err(format!("Failed to generate thumbnail: {}", e));
+            }
+
+            // Update cache metadata
+            if let Ok(mut cache) = cache::ThumbnailCache::new(&thumb_dir) {
+                cache.update_metadata(&file_id, Path::new(&input_path), file_size, modified_time);
+                let _ = cache.save();
+            }
         }
 
         let _ = app.fs_scope().allow_file(&thumbnail_path);
@@ -437,6 +510,23 @@ pub fn run() {
             }
 
             app.manage(state);
+
+            // Cleanup orphaned thumbnails on startup (limit to first 100)
+            {
+                if let Ok(app_data_dir) = app.path().app_data_dir() {
+                    let thumb_dir = app_data_dir.join("thumbnails");
+                    let state_guard = app.state::<AppState>();
+                    let data = state_guard.data.lock().unwrap();
+                    
+                    // Get list of valid file IDs
+                    let valid_ids: Vec<String> = data.files.iter().map(|f| f.id.clone()).collect();
+                    
+                    // Clean up orphaned thumbnails
+                    if let Ok(cache) = cache::ThumbnailCache::new(&thumb_dir) {
+                        let _ = cache.cleanup_orphaned_thumbnails(&thumb_dir, &valid_ids, 100);
+                    }
+                }
+            }
 
             // System Tray Setup
             let quit_i = MenuItem::with_id(
@@ -523,7 +613,8 @@ pub fn run() {
             open_file_default,
             show_in_explorer,
             copy_file_to_clipboard,
-            get_file_thumbnail
+            get_file_thumbnail,
+            get_file_info
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

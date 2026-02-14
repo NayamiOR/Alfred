@@ -28,6 +28,7 @@ import { convertFileSrc, invoke } from '@tauri-apps/api/core';
 import { readFile } from '@tauri-apps/plugin-fs';
 import * as pdfjsLib from 'pdfjs-dist';
 import Epub from 'epubjs';
+import { useThumbnailCache } from '../composables/useThumbnailCache';
 
 // Set up PDF.js worker
 import pdfWorker from 'pdfjs-dist/build/pdf.worker?url';
@@ -138,7 +139,15 @@ function onError() {
   loading.value = false;
 }
 
-async function generatePdfThumbnail(filePath: string): Promise<string> {
+async function generatePdfThumbnail(filePath: string, fileSize: number, modifiedTime: number): Promise<string> {
+  const cache = useThumbnailCache();
+  
+  // Check cache first
+  const cached = await cache.getThumbnail(filePath, fileSize, modifiedTime);
+  if (cached) {
+    return cached;
+  }
+  
   const url = convertFileSrc(filePath);
   const loadingTask = pdfjsLib.getDocument(url);
   const pdf = await loadingTask.promise;
@@ -164,7 +173,12 @@ async function generatePdfThumbnail(filePath: string): Promise<string> {
     canvas: null
   }).promise;
 
-  return canvas.toDataURL('image/jpeg', 0.8);
+  const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+  
+  // Save to cache
+  await cache.setThumbnail(filePath, fileSize, modifiedTime, dataUrl);
+  
+  return dataUrl;
 }
 
 async function generateEpubThumbnail(filePath: string): Promise<string> {
@@ -194,11 +208,13 @@ async function loadThumbnail() {
     return;
   }
 
-  // Handle PDF on frontend
+  // Handle PDF on frontend with caching
   if (props.file.extension.toLowerCase() === 'pdf') {
     loading.value = true;
     try {
-      thumbnailUrl.value = await generatePdfThumbnail(props.file.path);
+      // Use file size and modified time from file metadata
+      const fileInfo = await invoke<{size: number, modifiedTime: number}>('get_file_info', { path: props.file.path });
+      thumbnailUrl.value = await generatePdfThumbnail(props.file.path, fileInfo.size, fileInfo.modifiedTime);
     } catch (e) {
       console.error('Failed to generate PDF thumbnail:', e);
       error.value = true;
@@ -208,7 +224,7 @@ async function loadThumbnail() {
     return;
   }
 
-  // Handle EPUB on frontend
+  // Handle EPUB on frontend (no caching for now)
   if (props.file.extension.toLowerCase() === 'epub') {
     loading.value = true;
     try {
