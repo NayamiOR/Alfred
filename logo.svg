@@ -1,0 +1,19 @@
+<svg width="384" height="384" viewBox="0 0 384 384" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <!-- 
+     去留白版 (Full Bleed)
+     原尺寸 512，内容 384。
+     这里直接将画布设为 384，坐标整体平移 (-64, -64)，
+     确保背景矩形紧贴边缘 (x=0, y=0)。
+  -->
+  <!-- 背景：深色圆角矩形 (现在紧贴边缘) -->
+  <rect x="0" y="0" width="384" height="384" rx="80" fill="#1F1F1F"/>
+  <!-- 左括号 [ -->
+  <!-- 坐标已平移 -->
+  <path d="M128 96 H 80 V 288 H 128" stroke="#8FD14F" stroke-width="24" stroke-linecap="square" stroke-linejoin="miter"/>
+  <!-- 右括号 ] -->
+  <!-- 坐标已平移 -->
+  <path d="M256 96 H 304 V 288 H 256" stroke="#8FD14F" stroke-width="24" stroke-linecap="square" stroke-linejoin="miter"/>
+  <!-- 中间胶囊 I -->
+  <!-- 坐标已平移 -->
+  <rect x="172" y="136" width="40" height="112" rx="20" fill="#8FD14F"/>
+</svg>
