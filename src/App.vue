@@ -1,33 +1,33 @@
 <template>
-  <div 
-    class="app-layout" 
-    :class="{ 'dark-mode': isDarkMode }"
-    @dragenter.prevent="handleDragEnter"
-    @dragover.prevent="handleDragOver"
-    @dragleave.prevent="handleDragLeave"
-    @drop.prevent="handleDrop"
+  <div
+      class="app-layout"
+      :class="{ 'dark-mode': isDarkMode }"
+      @dragenter.prevent="handleDragEnter"
+      @dragover.prevent="handleDragOver"
+      @dragleave.prevent="handleDragLeave"
+      @drop.prevent="handleDrop"
   >
-    <TopBar :current-route="($route.name || 'Library') as string" />
-    <ShortcutBar @toggle-dark-mode="toggleDarkMode" :is-dark-mode="isDarkMode" />
+    <TopBar :current-route="($route.name || 'Library') as string"/>
+    <ShortcutBar @toggle-dark-mode="toggleDarkMode" :is-dark-mode="isDarkMode"/>
     <main class="content-area">
-      <router-view />
+      <router-view/>
     </main>
-    <NotificationContainer />
+    <NotificationContainer/>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, computed, onUnmounted, watch } from "vue";
-import { useI18n } from 'vue-i18n';
-import { useRoute } from 'vue-router';
-import { getCurrentWindow } from '@tauri-apps/api/window';
-import { actions, libraryStore } from './stores/library';
+import {ref, onMounted, computed, onUnmounted, watch} from "vue";
+import {useI18n} from 'vue-i18n';
+import {useRoute} from 'vue-router';
+import {getCurrentWindow} from '@tauri-apps/api/window';
+import {actions, libraryStore} from './stores/library';
 import TopBar from "./components/TopBar.vue";
 import ShortcutBar from "./components/ShortcutBar.vue";
 import NotificationContainer from "./components/NotificationContainer.vue";
 
 const isDarkMode = ref(false);
-const { locale, t } = useI18n();
+const {locale, t} = useI18n();
 const route = useRoute();
 
 // canDrop is true if we are in the library view (root or /library)
@@ -41,7 +41,7 @@ const dragMessage = computed(() => canDrop.value ? t('drag.accept') : t('drag.re
 watch([() => canDrop.value, () => dragMessage.value], () => {
   libraryStore.ui.dragState.type = canDrop.value ? 'accept' : 'reject';
   libraryStore.ui.dragState.message = dragMessage.value;
-}, { immediate: true });
+}, {immediate: true});
 
 // We keep native listeners ONLY for UI overlay feedback (dragCounter)
 let dragCounter = 0;
@@ -104,18 +104,18 @@ onMounted(async () => {
 
     if (canDrop.value) {
       const payload = event.payload as { paths: string[] };
-        if (payload.paths && payload.paths.length > 0) {
-          const newPaths = payload.paths.filter(path => !processingFiles.has(path));
-          if (newPaths.length > 0) {
-            newPaths.forEach(path => processingFiles.add(path));
+      if (payload.paths && payload.paths.length > 0) {
+        const newPaths = payload.paths.filter(path => !processingFiles.has(path));
+        if (newPaths.length > 0) {
+          newPaths.forEach(path => processingFiles.add(path));
 
-            actions.addFiles(newPaths).then(() => {
-              setTimeout(() => {
-                newPaths.forEach(path => processingFiles.delete(path));
-              }, 1000);
-            });
-          }
+          actions.addFiles(newPaths).then(() => {
+            setTimeout(() => {
+              newPaths.forEach(path => processingFiles.delete(path));
+            }, 1000);
+          });
         }
+      }
     }
   });
 
@@ -173,9 +173,9 @@ watch(() => libraryStore.ui.globalScale, (newScale) => {
     appLayout.style.width = `${100 / newScale}vw`;
     appLayout.style.height = `${100 / newScale}vh`;
   }
-}, { immediate: true });
+}, {immediate: true});
 
-defineExpose({ locale });
+defineExpose({locale});
 </script>
 
 <style>
@@ -210,9 +210,8 @@ body,
   font-family: Inter, system-ui, Avenir, Helvetica, Arial, sans-serif;
   background-color: var(--bg-primary);
   color: var(--text-primary);
-  transition:
-    background-color 0.3s ease,
-    color 0.3s ease;
+  transition: background-color 0.3s ease,
+  color 0.3s ease;
   user-select: none;
   -webkit-user-select: none;
 }

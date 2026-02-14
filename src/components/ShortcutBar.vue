@@ -2,38 +2,38 @@
   <nav class="shortcut-bar">
 
     <div class="top-icons">
-      <router-link 
-        to="/library" 
-        class="icon-button" 
-        :title="t('shortcutBar.resourceLibrary')" 
-        :class="{ active: route.path === '/library' || route.path === '/' }"
+      <router-link
+          to="/library"
+          class="icon-button"
+          :title="t('shortcutBar.resourceLibrary')"
+          :class="{ active: route.path === '/library' || route.path === '/' }"
       >
-        <v-icon name="px-archive" scale="1.2" />
+        <v-icon name="px-archive" scale="1.2"/>
       </router-link>
     </div>
 
     <div class="bottom-icons">
-      <button 
-        @click="$emit('toggle-dark-mode')" 
-        class="icon-button" 
-        :title="isDarkMode ? t('shortcutBar.lightMode') : t('shortcutBar.darkMode')"
+      <button
+          @click="$emit('toggle-dark-mode')"
+          class="icon-button"
+          :title="isDarkMode ? t('shortcutBar.lightMode') : t('shortcutBar.darkMode')"
       >
-        <v-icon v-if="isDarkMode" name="co-sun" scale="1.2" />
-        <v-icon v-else name="co-moon" scale="1.2" />
+        <v-icon v-if="isDarkMode" name="co-sun" scale="1.2"/>
+        <v-icon v-else name="co-moon" scale="1.2"/>
       </button>
-      
+
       <router-link to="/settings" class="icon-button" :title="t('shortcutBar.settings')">
-        <v-icon name="co-settings" scale="1.2" />
+        <v-icon name="co-settings" scale="1.2"/>
       </router-link>
     </div>
   </nav>
 </template>
 
 <script setup lang="ts">
-import { useRoute } from 'vue-router';
-import { useI18n } from 'vue-i18n';
+import {useRoute} from 'vue-router';
+import {useI18n} from 'vue-i18n';
 
-const { t } = useI18n();
+const {t} = useI18n();
 defineProps<{ isDarkMode: boolean }>();
 defineEmits(['toggle-dark-mode']);
 
@@ -54,9 +54,20 @@ const route = useRoute();
 }
 
 .icon-button {
-  background: none; border: none; cursor: pointer; padding: 10px; margin: 5px 0;
-  font-size: 18px; color: var(--text-secondary); text-decoration: none; display: flex;
-  justify-content: center; align-items: center; width: 40px; height: 40px; border-radius: 8px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 10px;
+  margin: 5px 0;
+  font-size: 18px;
+  color: var(--text-secondary);
+  text-decoration: none;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
   transition: color 0.3s ease, background-color 0.3s ease;
 }
 
@@ -67,12 +78,14 @@ const route = useRoute();
   border-radius: 4px;
 }
 
-.icon-button:hover { 
-  background-color: var(--hover-color); 
+.icon-button:hover {
+  background-color: var(--hover-color);
 }
 
 .top-icons, .bottom-icons {
-  display: flex; flex-direction: column; align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .bottom-icons {

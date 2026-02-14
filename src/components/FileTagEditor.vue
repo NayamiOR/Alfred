@@ -2,43 +2,43 @@
   <div class="file-tag-editor">
     <!-- Left: Filename -->
     <div class="file-name" :title="file.name">{{ file.name }}</div>
-    
+
     <!-- Right: Tag Editor -->
     <div class="tag-editor-container" @click="focusInput">
       <!-- Current Tags -->
       <div class="tag-list">
-        <span 
-          v-for="tagId in fileTags" 
-          :key="tagId" 
-          class="tag-chip"
+        <span
+            v-for="tagId in fileTags"
+            :key="tagId"
+            class="tag-chip"
         >
           {{ getTagName(tagId) }}
           <button @click.stop="removeTag(tagId)" class="remove-btn">×</button>
         </span>
       </div>
-      
+
       <!-- Input Area -->
       <div class="input-wrapper">
         <input
-          ref="inputRef"
-          v-model="inputValue"
-          @keydown="onKeyDown"
-          @input="onInput"
-          @focus="onFocus"
-          @blur="onBlur"
-           :placeholder="t('library.tagInputPlaceholder') || 'Add tag...'"
-          class="tag-input"
-          type="text"
+            ref="inputRef"
+            v-model="inputValue"
+            @keydown="onKeyDown"
+            @input="onInput"
+            @focus="onFocus"
+            @blur="onBlur"
+            :placeholder="t('library.tagInputPlaceholder') || 'Add tag...'"
+            class="tag-input"
+            type="text"
         />
-        
+
         <!-- Autocomplete Dropdown -->
         <div v-if="showSuggestions && filteredTags.length > 0" class="suggestions-dropdown">
           <div
-            v-for="(tag, index) in filteredTags"
-            :key="tag.id"
-            :class="['suggestion-item', { 'highlighted': index === highlightedIndex }]"
-            @mousedown.prevent="addTag(tag.id)"
-            @mouseenter="highlightedIndex = index"
+              v-for="(tag, index) in filteredTags"
+              :key="tag.id"
+              :class="['suggestion-item', { 'highlighted': index === highlightedIndex }]"
+              @mousedown.prevent="addTag(tag.id)"
+              @mouseenter="highlightedIndex = index"
           >
             {{ tag.name }}
           </div>
@@ -49,15 +49,15 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, nextTick } from 'vue';
-import { useI18n } from 'vue-i18n';
-import { FileItem, libraryStore, actions, getTagName } from '../stores/library';
+import {ref, computed, nextTick} from 'vue';
+import {useI18n} from 'vue-i18n';
+import {FileItem, libraryStore, actions, getTagName} from '../stores/library';
 
 const props = defineProps<{
   file: FileItem;
 }>();
 
-const { t } = useI18n();
+const {t} = useI18n();
 
 const inputRef = ref<HTMLInputElement | null>(null);
 const inputValue = ref('');
@@ -76,8 +76,8 @@ const availableTags = computed(() => {
 const filteredTags = computed(() => {
   if (!inputValue.value.trim()) return availableTags.value;
   const query = inputValue.value.toLowerCase();
-  return availableTags.value.filter(tag => 
-    tag.name.toLowerCase().includes(query)
+  return availableTags.value.filter(tag =>
+      tag.name.toLowerCase().includes(query)
   );
 });
 
@@ -104,12 +104,12 @@ function onBlur() {
 
 async function addTag(tagId: string) {
   if (fileTags.value.includes(tagId)) return;
-  
+
   await actions.attachTag(props.file.id, tagId);
   inputValue.value = '';
   showSuggestions.value = false;
   highlightedIndex.value = 0;
-  
+
   // Re-focus input for quick adding
   nextTick(() => {
     inputRef.value?.focus();
@@ -128,7 +128,7 @@ function onKeyDown(event: KeyboardEvent) {
     showSuggestions.value = false;
     return;
   }
-  
+
   // Space: Attach tag by name if input is not empty
   if (event.key === ' ') {
     if (inputValue.value.trim()) {
@@ -140,7 +140,7 @@ function onKeyDown(event: KeyboardEvent) {
     }
     return;
   }
-  
+
   // Enter: Add highlighted or first suggestion, fallback to attachTagByName
   if (event.key === 'Enter') {
     event.preventDefault();
@@ -158,7 +158,7 @@ function onKeyDown(event: KeyboardEvent) {
     highlightedIndex.value = 0;
     return;
   }
-  
+
   // Backspace: Remove last tag if input is empty
   if (event.key === 'Backspace' && !inputValue.value && fileTags.value.length > 0) {
     event.preventDefault();
@@ -166,7 +166,7 @@ function onKeyDown(event: KeyboardEvent) {
     removeTag(lastTagId);
     return;
   }
-  
+
   // Arrow navigation in dropdown
   if (showSuggestions.value && filteredTags.value.length > 0) {
     if (event.key === 'ArrowDown') {

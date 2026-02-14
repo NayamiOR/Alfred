@@ -1,44 +1,45 @@
 <template>
   <div class="library-top-bar" data-tauri-drag-region>
-    <button @click="toggleSidebar" class="toggle-button" :title="t('library.toggleSidebar')" data-tauri-drag-region="false">
-      <v-icon name="co-expand-right" />
+    <button @click="toggleSidebar" class="toggle-button" :title="t('library.toggleSidebar')"
+            data-tauri-drag-region="false">
+      <v-icon name="co-expand-right"/>
     </button>
-    
+
     <!-- Left Toolbar (Search & Scale) -->
     <div class="toolbar-section" data-tauri-drag-region="false">
       <div class="search-bar">
-        <v-icon name="co-search" class="search-icon" />
-        <input 
-          v-model="libraryStore.ui.searchQuery" 
-          :placeholder="t('library.searchPlaceholder')" 
-          class="search-input"
+        <v-icon name="co-search" class="search-icon"/>
+        <input
+            v-model="libraryStore.ui.searchQuery"
+            :placeholder="t('library.searchPlaceholder')"
+            class="search-input"
         />
       </div>
 
       <div class="scale-control" v-if="libraryStore.ui.isGridView">
-        <input 
-          type="range" 
-          v-model.number="libraryStore.ui.cardScale" 
-          min="0.5"
-          max="1.5"
-          step="0.02"
-          class="scale-slider"
-          :title="t('library.cardSize')"
-          @change="saveCardScale"
+        <input
+            type="range"
+            v-model.number="libraryStore.ui.cardScale"
+            min="0.5"
+            max="1.5"
+            step="0.02"
+            class="scale-slider"
+            :title="t('library.cardSize')"
+            @change="saveCardScale"
         />
       </div>
 
       <button ref="addButton" class="add-btn" @click="showAddMenu" :title="t('library.add')">
-        <v-icon name="co-plus" />
+        <v-icon name="co-plus"/>
       </button>
     </div>
 
-    <ContextMenu 
-      :visible="addMenuVisible" 
-      :position="addMenuPosition" 
-      :items="addMenuItems"
-      @close="addMenuVisible = false"
-      @action="handleMenuAction"
+    <ContextMenu
+        :visible="addMenuVisible"
+        :position="addMenuPosition"
+        :items="addMenuItems"
+        @close="addMenuVisible = false"
+        @action="handleMenuAction"
     />
 
     <div class="spacer"></div>
@@ -49,34 +50,34 @@
         <option :value="true">{{ t('library.cardView') }}</option>
         <option :value="false">{{ t('library.listView') }}</option>
       </select>
-      
-      <button 
-        @click="libraryStore.ui.showFilterPanel = !libraryStore.ui.showFilterPanel" 
-        class="filter-button" 
-        :class="{ active: libraryStore.ui.showFilterPanel }"
+
+      <button
+          @click="libraryStore.ui.showFilterPanel = !libraryStore.ui.showFilterPanel"
+          class="filter-button"
+          :class="{ active: libraryStore.ui.showFilterPanel }"
       >
-        <v-icon name="co-hamburger-menu" />
+        <v-icon name="co-hamburger-menu"/>
       </button>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
-import { useI18n } from 'vue-i18n';
+import {ref, computed} from 'vue';
+import {useI18n} from 'vue-i18n';
 import ContextMenu from '../ContextMenu.vue';
-import { libraryStore, actions } from '../../stores/library';
-import { open } from '@tauri-apps/plugin-dialog';
+import {libraryStore, actions} from '../../stores/library';
+import {open} from '@tauri-apps/plugin-dialog';
 
-const { t } = useI18n();
+const {t} = useI18n();
 
 const addButton = ref<HTMLElement | null>(null);
 const addMenuVisible = ref(false);
-const addMenuPosition = ref({ x: 0, y: 0 });
+const addMenuPosition = ref({x: 0, y: 0});
 
 const addMenuItems = computed(() => [
-  { label: t('library.addFiles'), action: 'add-files' },
-  { label: t('library.addFolders'), action: 'add-folders' }
+  {label: t('library.addFiles'), action: 'add-files'},
+  {label: t('library.addFolders'), action: 'add-folders'}
 ]);
 
 function toggleSidebar() {
@@ -110,9 +111,9 @@ async function triggerAdd(isFolder: boolean) {
   try {
     const selected = await open({
       multiple: true,
-      directory: isFolder, 
+      directory: isFolder,
     });
-    
+
     if (selected) {
       const paths = Array.isArray(selected) ? selected : [selected];
       await actions.addFiles(paths);
